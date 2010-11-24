@@ -31,12 +31,12 @@
 (define yume:procedure-call
   (lambda (procedure cps args)
     (let ((procedure-tag (car procedure)) (p (cdr procedure)))
-    (if (eq? 'procedure (car procedure-tag))
-        (let ((procedure-info (cdr procedure-tag)))
-          (let ((args-length (car procedure-info)) (args-is-variable (cdr procedure-info)))
-            (if args-is-variable
-                (yume:halt "variable arguments not supported")
-                (if (eq? args-length (length args))
-                 ((car p) cps (cons args (cdr p)))
-                 (yume:halt (list "wrong-number-of-args" procedure args))))))
-           (yume:halt (list "not-a-procedure" procedure))))))
+      (if (eq? 'procedure (car procedure-tag))
+          (let ((procedure-info (cdr procedure-tag)))
+            (let ((args-length (car procedure-info)) (args-is-variable (cdr procedure-info)))
+              (if args-is-variable
+                  (yume:halt "variable arguments not supported")
+                  (if (eq? args-length (length args))
+                      ((car p) cps (cons args (cdr p)))
+                      (yume:halt (list "wrong-number-of-args" procedure args))))))
+          (yume:halt (list "not-a-procedure" procedure))))))
