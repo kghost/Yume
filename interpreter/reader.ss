@@ -55,6 +55,9 @@
              (eqv? c #\;)
              (eof-object? c))))
          
+         ; all parse-xxx function return (char . result), where char is which we look ahead
+         ; except for ('dot . char) when meet a #\. as '. is not a valid symbol
+         ;        and ('e . char) when meet #\) need to processed by parse-list and parse-array
          (parse-dot
           (lambda (c input)
             (cond ((digit? c) (parse-number-radix (read-char input) (list c #\.) input))
@@ -107,6 +110,19 @@
                           (cons c (cadr char))
                           (raise (list "parse-error" "unknown char name" (list->string (reverse pre))))))))))
          
+         (parse-sharp-name
+          (lambda (c pre input)
+            (if (letter? c)
+                (parse-sharp-name (read-char input) (cons c pre) input)
+                (let ((r (assoc (list->string (reverse pre))
+                                   '(("t" #t)
+                                     ("true" #true)
+                                     ("f" #f)
+                                     ("false" #false)))))
+                  (if r
+                      (cons c (cadr r))
+                      (raise (list "parse-error" "unknown name" (list->string (reverse pre)))))))))
+         
          (parse-char
           (lambda (c input)
             (if (letter? c)
@@ -116,6 +132,7 @@
          (parse-sharp
           (lambda (c input)
             (cond ((eqv? c #\\) (parse-char (read-char input) input))
+                  ((letter? c) (parse-sharp-name c '() input))
                   (else (raise (list "parse-error" (list #\# c)))))))
          
          (parse-symbol
@@ -186,7 +203,7 @@
          )
       
       (let* ((datum (parse-datum (read-char input) input)) (char (car datum)) (result (cdr datum)))
-        (if (char? char)
+        (if (or (char? char) (eof-object? result))
             result
             (raise (list "parse-error" result)))))))
 
