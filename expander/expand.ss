@@ -1,253 +1,166 @@
-#lang scheme
-
-(require srfi/1)
+(use-modules (srfi srfi-1))
 
 (define expand
   (lambda (p)
-    (letrec ((rules (lambda (p) (partition (lambda (e) (eq? (car e) 'define-syntax)) p)))
-             
+    (letrec ((rules (lambda (p) (partition (lambda (e) (and (pair? e) (eq? (car e) 'define-syntax))) p)))
+
+             (eq-this? (lambda (this) (lambda (that) (eq? this that))))
+
              (dotted-every
-              (lambda (pred list)
-                (let lp ((list list))
-                  (if (pair? list)
-                      (and (pred (car list))
-                           (lp (cdr list)))
-                      (pred list)))))
-             
+               (lambda (pred list)
+                 (let lp ((list list))
+                   (if (pair? list)
+                     (and (pred (car list))
+                          (lp (cdr list)))
+                     (pred list)))))
+
              (prepare-rules
-              (lambda (macro)
-                (let ((check-syntax-rule
-                          (lambda (auxiliary-keywords)
-                            (lambda (rule)
-                              (let ((matching (car rule)) (expander (cadr rule)) (null (cddr rule)))
-                                (and (eq? null '())
-                                     (let check-dddot-at-head ((matching matching))
-                                       (or (not (pair? matching))
-                                           (and (not (eq? (car matching) '...))
-                                                (dotted-every check-dddot-at-head matching))))))))))
-                  
-                  (list (cadr macro) (let ((syntax-rules (caddr macro)) (null (cdddr macro)))
-                                       (if (and (eq? null '()) (pair? syntax-rules) (eq? (car syntax-rules) 'syntax-rules)
-                                                (pair? (cdr syntax-rules)) (proper-list? (cadr syntax-rules)) (every symbol? (cadr syntax-rules))
-                                                (proper-list? (cddr syntax-rules)) (every (check-syntax-rule (cadr syntax-rules)) (cddr syntax-rules)))
-                                           (cdr syntax-rules)
-                                           (raise (list "expand-error" "syntax-error" macro))))))))
-             
+               (lambda (macro)
+                 (let ((check-syntax-rule
+                         (lambda (auxiliary-keywords)
+                           (lambda (rule)
+                             (let ((matching (car rule)) (expander (cadr rule)) (null (cddr rule)))
+                               (and (eq? null '())
+                                    (let check-dddot-at-head ((matching matching))
+                                      (or (not (pair? matching))
+                                          (and (not (eq? (car matching) '...))
+                                               (dotted-every check-dddot-at-head matching))))))))))
+
+                   (list (cadr macro) (let ((syntax-rules (caddr macro)) (null (cdddr macro)))
+                                        (if (and (eq? null '()) (pair? syntax-rules) (eq? (car syntax-rules) 'syntax-rules)
+                                                 (pair? (cdr syntax-rules)) (proper-list? (cadr syntax-rules)) (every symbol? (cadr syntax-rules))
+                                                 (proper-list? (cddr syntax-rules)) (every (check-syntax-rule (cadr syntax-rules)) (cddr syntax-rules)))
+                                          (cdr syntax-rules)
+                                          (raise (list "expand-error" "syntax-error" macro))))))))
+
              (match-syntax-rules
-              (lambda (auxiliary-keywords rule-set p)
-                (letrec ((match-rec-empty-binding
-                          (lambda (pre rule)
-                            (cond ((pair? rule) (match-rec-empty-binding (match-rec-empty-binding pre (cdr rule)) (car rule)))
-                                  ((symbol? rule) (cons (list rule) pre))
-                                  (else pre))))
-                         
-                         (match-rec
-                          (lambda (pre rule p)
-                            ; pre => ((variable . binding) ...)
-                            (cond ((pair? p) (let ((next (match rule (car p))))
-                                               (and next (match-rec (fold-right (lambda (p n tail) (cons (cons (car p) (cons n (cdr p))) tail)) '() pre (map cadr next)) rule (cdr p)))))
-                                  ((eq? '() p) (map (lambda (e) (list (car e) (cons #t (cdr e)))) pre))
-                                  (else #f))))
-                         
-                         (match ; -> ((variable . binding) ...) or #f if not match, binding => (#t . bind) if is recursive or (#f . bind)
-                             (lambda (rule p)
-                               (cond ((symbol? rule) (list (list rule (cons #f p))))
-                                     ((pair? rule) (if (equal? (cdr rule) '(...)) ; XXX: seems '... can only appear at the end of list, or need a fsm processer :(
-                                                       (match-rec (match-rec-empty-binding '() (car rule)) (car rule) p)
-                                                       (if (pair? p)
-                                                           (let ((head (match (car rule) (car p))) (tail (match (cdr rule) (cdr p))))
-                                                             (if (and head tail)
-                                                                 (append head tail)
-                                                                 #f))
-                                                           #f)))
-                                     (else (if (equal? rule p) '() #f))))))
-                  (if (null-list? rule-set)
-                      (raise (list "expand-error" p "don't match"))
-                      (let ((result (match (caar rule-set) p)))
-                        (if result
-                            (cons (cadar rule-set) result)
-                            (match-syntax-rules auxiliary-keywords (cdr rule-set) p)))))))
-             
+               (lambda (auxiliary-keywords rule-set p)
+                 (letrec ((match-rec-empty-binding
+                            (lambda (pre rule)
+                              (cond ((pair? rule) (match-rec-empty-binding (match-rec-empty-binding pre (cdr rule)) (car rule)))
+                                    ((and (symbol? rule) (not (find (eq-this? rule) auxiliary-keywords))) (cons (list rule) pre))
+                                    (else pre))))
+
+                          (match-rec
+                            (lambda (pre rule p)
+                              ; pre => ((variable . binding) ...)
+                              (cond ((pair? p) (let ((next (match rule (car p))))
+                                                 (and next (match-rec (fold-right (lambda (p n tail) (cons (cons (car p) (cons n (cdr p))) tail)) '() pre (map cadr next)) rule (cdr p)))))
+                                    ((eq? '() p) (map (lambda (e) (list (car e) (cons #t (cdr e)))) pre))
+                                    (else #f))))
+
+                          (match ; -> ((variable . binding) ...) or #f if not match, binding => (#t . bind) if is recursive or (#f . bind)
+                            (lambda (rule p)
+                              (cond ((and (symbol? rule) (not (find (eq-this? rule) auxiliary-keywords)))
+                                     (list (list rule (cons #f p))))
+                                    ((pair? rule) (if (equal? (cdr rule) '(...))
+                                                    ; XXX: seems '... can only appear at the end of list, or need a fsm processer :(
+                                                    (match-rec (match-rec-empty-binding '() (car rule)) (car rule) p)
+                                                    (if (pair? p)
+                                                      (let ((head (match (car rule) (car p))) (tail (match (cdr rule) (cdr p))))
+                                                        (if (and head tail)
+                                                          (append head tail)
+                                                          #f))
+                                                      #f)))
+                                    (else (if (equal? rule p) '() #f))))))
+                   (if (null-list? rule-set)
+                     (raise (list "expand-error" p "don't match"))
+                     (let ((result (match (caar rule-set) p)))
+                       (if result
+                         (cons (cadar rule-set) result)
+                         (match-syntax-rules auxiliary-keywords (cdr rule-set) p)))))))
+
              (pair-fold-right-all
-              (lambda (kons-tail kons clist)
-                (cond ((pair? clist) (kons clist (pair-fold-right-all kons-tail kons (cdr clist))))
-                      (else (kons-tail clist)))))
-             
+               (lambda (kons-tail kons clist)
+                 (cond ((pair? clist) (kons clist (pair-fold-right-all kons-tail kons (cdr clist))))
+                       (else (kons-tail clist)))))
+
              (fold-right-all
-              (lambda (kons-tail kons clist)
-                (cond ((pair? clist) (kons (car clist) (fold-right-all kons-tail kons (cdr clist))))
-                      (else (kons-tail clist)))))
-             
+               (lambda (kons-tail kons clist)
+                 (cond ((pair? clist) (kons (car clist) (fold-right-all kons-tail kons (cdr clist))))
+                       (else (kons-tail clist)))))
+
              (map-all
-              (lambda (proc clist)
-                (fold-right-all (lambda (a) (proc a))
-                                (lambda (a d) (cons (proc a) d))
-                                clist)))
-             
-             (binding-need
-              (lambda (pre rule)
-                (cond ((pair? rule) (binding-need (binding-need pre (cdr rule)) (car rule)))
-                      ((symbol? rule) (cons rule pre))
-                      (else pre))))
-             
+               (lambda (proc clist)
+                 (fold-right-all (lambda (a) (proc a))
+                                 (lambda (a d) (cons (proc a) d))
+                                 clist)))
+
+             (binding-need ;
+               (lambda (pre rule)
+                 (cond ((pair? rule) (binding-need (binding-need pre (cdr rule)) (car rule)))
+                       ((symbol? rule) (cons rule pre))
+                       (else pre))))
+
              (binding-pop-frame ; -> (poped-binding . remaining-binding) or (#f . binding) if at lease one binding is at end
-              (lambda (binding need)
-                (fold (lambda (e tail) ; it isn't ordered, so use fold instead of fold-right
-                        (if (and (car tail) (find (lambda (v) (eq? v (car e))) need))
-                            (let ((bind (cadr e)))
-                              (if (car bind)
-                                  (if (null-list? (cdr bind)) ; it is a recursive bind
-                                      (cons #f binding) ; but at end return #f
-                                      (cons (cons (list (car e) (cadr bind)) (car tail))
-                                            (cons (list (car e) (cons #t (cddr bind))) (cdr tail))))
-                                  (cons (cons e (car tail))
-                                        (cons e (cdr tail)))))
-                            tail))
-                      (cons '() '()) binding)))
-             
+               (lambda (binding need)
+                 (fold (lambda (e tail) ; it isn't ordered, so use fold instead of fold-right
+                         (if (and (car tail) (find (eq-this? (car e)) need))
+                           (let ((bind (cadr e)))
+                             (if (car bind)
+                               (if (null-list? (cdr bind)) ; it is a recursive bind
+                                 (cons #f binding) ; but at end return #f
+                                 (cons (cons (list (car e) (cadr bind)) (car tail))
+                                       (cons (list (car e) (cons #t (cddr bind))) (cdr tail))))
+                               (cons (cons e (car tail))
+                                     (cons e (cdr tail)))))
+                           tail))
+                       (cons '() '()) binding)))
+
              (expand-term
-              (lambda (syntax-rules p)
-                (let* ((result (match-syntax-rules (car syntax-rules) (cdr syntax-rules) p))
-                       (expr (car result)) (binding (cdr result)))
-                  (letrec
-                      ((apply-rule-rec
+               (lambda (syntax-rules p)
+                 (let* ((result (match-syntax-rules (car syntax-rules) (cdr syntax-rules) p))
+                        (expr (car result)) (binding (cdr result)))
+                   (letrec
+                     ((apply-rule-rec
                         (lambda (result rule binding)
                           (let ((need (binding-need '() rule)))
-                            (apply unfold-right (append (list (lambda (seed) (not (car seed)))
-                                                              (lambda (seed) (apply-rule rule (car seed)))
-                                                              (lambda (seed) (binding-pop-frame (cdr seed) need))
-                                                              (binding-pop-frame binding need))
-                                                        result)))))
-                       
-                       (apply-rule
+                            (unfold-right (lambda (seed) (not (car seed)))
+                                          (lambda (seed) (apply-rule rule (car seed)))
+                                          (lambda (seed) (binding-pop-frame (cdr seed) need))
+                                          (binding-pop-frame binding need)
+                                          result))))
+
+                      (apply-rule
                         (lambda (rule binding) ; -> result
                           (cond ((pair? rule) (pair-fold-right-all
-                                               (lambda (lis) (apply-rule lis binding))
-                                               (lambda (lis next)
-                                                 (cond ((and (eq? (car lis) '...) (pair? (cdr lis)) (eq? (cadr lis) '...)) '...)
-                                                       ((eq? (car lis) '...) next)
-                                                       ((and (pair? (cdr lis)) (eq? (cadr lis) '...))
-                                                        (apply-rule-rec next (car lis) binding))
-                                                       (else (cons (apply-rule (car lis) binding) next))))
-                                               rule))
+                                                (lambda (lis) (apply-rule lis binding))
+                                                (lambda (lis next)
+                                                  (cond ((and (eq? (car lis) '...) (pair? (cdr lis)) (eq? (cadr lis) '...)) '...)
+                                                        ((eq? (car lis) '...) next)
+                                                        ((and (pair? (cdr lis)) (eq? (cadr lis) '...))
+                                                         (apply-rule-rec next (car lis) binding))
+                                                        (else (cons (apply-rule (car lis) binding) next))))
+                                                rule))
                                 ((symbol? rule) (let ((found (assq rule binding)))
                                                   (if found
-                                                      (if (caadr found)
-                                                          (raise (list "extend-error" rule "'... depth not match"))
-                                                          (cdadr found))
-                                                      rule)))
+                                                    (if (caadr found)
+                                                      (raise (list "extend-error" rule "'... depth not match"))
+                                                      (cdadr found))
+                                                    rule)))
                                 (else rule))))
-                       )
-                    (apply-rule expr binding))
-                  )))
-             
+                      )
+                     (apply-rule expr binding))
+                   )))
+
              (expand-rules-checked
-              (lambda (rules p)
-                (letrec ((try-expand-term
-                          (lambda (p)
-                            (if (pair? p)
+               (lambda (rules p)
+                 (letrec ((try-expand-term
+                            (lambda (p)
+                              (if (pair? p)
                                 (let ((rule (assq (car p) rules)))
                                   (if rule
-                                      (expand-rules-checked rules (expand-term (cadr rule) p))
-                                      (map-all try-expand-term p)))
+                                    (expand-rules-checked rules (expand-term (cadr rule) p))
+                                    (map-all try-expand-term p)))
                                 p))))
-                  (try-expand-term p))))
-             
+                   (try-expand-term p))))
+
              (expand
-              (lambda (rules p)
-                (expand-rules-checked (map prepare-rules rules) p))))
-      
-      
+               (lambda (rules p)
+                   (expand-rules-checked (map prepare-rules rules) p))))
+
+
       (call-with-values
-       (lambda () (rules p))
-       expand))))
+        (lambda () (rules p))
+        expand))))
 
-
-
-(expand '(
-          (define-syntax let
-            (syntax-rules ()
-              ((let ((var expr) ...) body ...)
-               ((lambda (var ...) body ...) expr ...))))
-          
-          (let ((a 1)(b 2)) (+ b a))
-          ))
-
-(expand '(
-          (define-syntax foo 
-            (syntax-rules () 
-              ((foo (a ...) (b ...) ...) '(((a b) ...) ...)))) 
-          (foo (1 2) (3 4) (5 6 7))
-          ))
-
-(expand '(
-          (define-syntax let
-            (syntax-rules ()
-              ((let ((var expr) ...) body ...)
-               ((lambda (var ...) body ...) expr ...))))
-          
-          (define-syntax letrec
-            (syntax-rules ()
-              ((_ ((var init) ...) . body)
-               (let ((var 'undefined) ...)
-                 (let ((var (let ((temp init)) (lambda () (set! var temp))))
-                       ...
-                       (bod (lambda () . body)))
-                   (var) ... (bod))))))
-          
-          (letrec ((a 10) (b 20)) (+ a b))
-          ))
-
-(expand '(
-          (define-syntax rec
-            (syntax-rules ()
-              ((rec (a ...) ...) (xxx (... ...) (a ...) ...))))
-          
-          (rec (1 2 3) (4 5 6 7 8) (9 10))
-          ))
-
-(expand '(
-          (define-syntax reverse-order 
-            (syntax-rules () 
-              ((_ e) (reverse-order e ())) 
-              ((_ (e . rest) r) (reverse-order rest (e . r))) 
-              ((_ () r) r))) 
-          (reverse-order (2 3 -))
-          ))
-
-(expand '(
-          (define-syntax foo 
-            (syntax-rules () 
-              ((foo (x ...)) 1) 
-              ((foo (x . y)) 2))) 
-          (foo (1 2 3))     ;=> 1 
-          (foo (1 . (2 3))) ;=> 1 
-          (foo (1 . 2))     ;=> 2 
-          ))
-
-(expand '(
-          (define-syntax def-multi 
-            (syntax-rules () 
-              ((def-multi (var ...) expr ...) 
-               (begin 
-                 (define var expr) 
-                 ...)))) 
-          (def-multi (a b) (+ 1 2) (+ 3 4)) 
-          (+ a b) ;=> 10
-          ))
-
-(expand '(
-          (define-syntax define-values 
-            (syntax-rules () 
-              ((define-values () exp) 
-               (call-with-values (lambda () exp) (lambda () 'unspecified))) 
-              ((define-values (var . vars) exp) 
-               (begin  
-                 (define var (call-with-values (lambda () exp) list)) 
-                 (define-values vars (apply values (cdr var))) 
-                 (define var (car var)))) 
-              ((define-values var exp) 
-               (define var (call-with-values (lambda () exp) list))))) 
-          
-          (define-values (one two) (values 1 2))
-          ))
