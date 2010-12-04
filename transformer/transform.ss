@@ -13,33 +13,32 @@
          (lambda (name env expressions)
            (let ((expr-name (string-append name ":e")))
              (if (pair? expressions)
-               (do-transform
+               (if (eq? '() (cdr expressions))
                  (transform expr-name env (car expressions))
-                 (lambda (result)
-                   (if (eq? '() (cdr expressions))
-                     `(#f (yume:label ; call cps at last
+                 (do-transform
+                   (transform expr-name env (car expressions))
+                   (lambda (result)
+                     (transform-begin (string-append name ">") env (cdr expressions)))
+                   (lambda (result)
+                     `(#f (yume:label
                             (lambda (cps scope)
-                              (yume:continue-call cps ,result))
-                            ,name))
-                     (transform-begin (string-append name ">") env (cdr expressions)))) ; skip inline expr inside begin
-                 (lambda (result)
-                   `(#f (yume:label
-                          (lambda (cps scope)
-                            (,result
-                              ,(if (eq? '() (cdr expressions))
-                                 'cps
-                                 `(yume:continue-new
-                                    (lambda (context result)
-                                      ,(do-transform ; transform-begin never inline
-                                         (transform-begin (string-append name ">") env (cdr expressions))
-                                         #f
-                                         (lambda (result)
-                                           `(,result
-                                              (yume:continue-cps context)
-                                              (yume:continue-scope context)))))
-                                    cps scope))
-                              scope))
-                          ,name))))
+                              (,result
+                                ,(do-transform
+                                   (transform-begin (string-append name ">") env (cdr expressions))
+                                   (lambda (result)
+                                     `(yume:continue-new
+                                        (lambda (context result)
+                                          (yume:continue-call (yume:continue-cps context) ,result))
+                                        cps #f))
+                                   (lambda (result)
+                                     `(yume:continue-new
+                                        (lambda (context result)
+                                          (,result
+                                            (yume:continue-cps context)
+                                            (yume:continue-scope context)))
+                                        cps scope)))
+                                scope))
+                            ,name)))))
                (raise (list "transform-error" "begin is not list" expressions))))))
 
        (transform-quote
@@ -83,19 +82,16 @@
                                   #t
                                   (f list))))))
                    (every symbol? args))
-               `(#f (yume:label
-                      (lambda (cps scope)
-                        (yume:continue-call
-                          cps
-                          (yume:procedure-new
-                            (lambda (cps scope)
-                              ,(do-transform
-                                 (transform-begin (string-append name ":lambda") (cons args env) expressions)
-                                 #f
-                                 (lambda (result)
-                                   `(,result cps scope))))
-                            ,(length args) #f scope)))
-                      ,name))
+               `(#t (yume:procedure-new
+                      ,(do-transform
+                         (transform-begin (string-append name ":lambda") (cons args env) expressions)
+                         (lambda (result)
+                           `(yume:label
+                              (lambda (cps scope)
+                                (yume:continue-call cps ,result))
+                              ,name))
+                         (lambda (result) result))
+                      ,(length args) #f scope))
                (raise (list "transform-error" "lambda args error" args))))))
 
        (transform-params
@@ -258,4 +254,4 @@
                  (else (transform-instant name env expression)))))
        )
 
-      (list (cadr (transform "g" '() p)) '(yume:continue-new (lambda (continue result) (write result) (newline)) #f #f) ''()))))
+      (cadr (transform "g" '() p)))))
