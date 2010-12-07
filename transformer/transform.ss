@@ -21,18 +21,18 @@
                      (transform-begin (string-append name ">") env (cdr expressions)))
                    (lambda (result)
                      `(#f (yume:label
-                            (lambda (cps scope)
+                            (yume:lambda-cps (cps scope)
                               (,result
                                 ,(do-transform
                                    (transform-begin (string-append name ">") env (cdr expressions))
                                    (lambda (result)
                                      `(yume:continue-new
-                                        (lambda (context result)
+                                        (yume:lambda-continue (context result)
                                           (yume:continue-call (yume:continue-cps context) ,result))
                                         cps #f))
                                    (lambda (result)
                                      `(yume:continue-new
-                                        (lambda (context result)
+                                        (yume:lambda-continue (context result)
                                           (,result
                                             (yume:continue-cps context)
                                             (yume:continue-scope context)))
@@ -52,7 +52,7 @@
            (let ((variable (car define)) (value (cadr define)) (null (cddr define)))
              (if (null-list? null)
                `(#f (yume:label
-                      (lambda (cps scope)
+                      (yume:lambda-cps (cps scope)
                         ,@(do-transform
                             (transform (string-append name ":e") env value)
                             (lambda (result)
@@ -60,7 +60,7 @@
                             (lambda (result)
                               `(,result
                                  (yume:continue-new
-                                   (lambda (context result)
+                                   (yume:lambda-continue (context result)
                                      (yume:continue-call (yume:continue-cps context) (yume:global-set ,variable result)))
                                    cps #f)
                                  scope))))
@@ -87,7 +87,7 @@
                          (transform-begin (string-append name ":lambda") (cons args env) expressions)
                          (lambda (result)
                            `(yume:label
-                              (lambda (cps scope)
+                              (yume:lambda-cps (cps scope)
                                 (yume:continue-call cps ,result))
                               ,name))
                          (lambda (result) result))
@@ -106,31 +106,31 @@
                      `(#t (cons ,result-e ,result)))
                    (lambda (result-e)
                      `(#f (yume:label
-                            (lambda (cps scope)
+                            (yume:lambda-cps (cps scope)
                               (,result-e
                                 (yume:continue-new
-                                  (lambda (context result)
+                                  (yume:lambda-continue (context result)
                                     (yume:continue-call (yume:continue-cps context) (cons result ,result)))
                                   cps #f)
                                 scope))
                             ,name)))))
                (lambda (result)
                  `(#f (yume:label
-                        (lambda (cps scope)
+                        (yume:lambda-cps (cps scope)
                           (,result
                             ,(do-transform
                                (transform (string-append name ":e") env (car params))
                                (lambda (result-e)
                                  `(yume:continue-new
-                                    (lambda (context result)
+                                    (yume:lambda-continue (context result)
                                       (yume:continue-call (yume:continue-cps context) (cons ,result-e result)))
                                     cps #f))
                                (lambda (result-e)
                                  `(yume:continue-new
-                                    (lambda (context result)
+                                    (yume:lambda-continue (context result)
                                       (,result-e
                                         (yume:continue-new
-                                          (lambda (context result)
+                                          (yume:lambda-continue (context result)
                                             (yume:continue-call (yume:continue-cps context) (cons result (yume:continue-scope context))))
                                           (yume:continue-cps context) result)
                                         (yume:continue-scope context)))
@@ -144,7 +144,7 @@
        (transform-call
          (lambda (name env params)
            `(#f (yume:label
-                  (lambda (cps scope)
+                  (yume:lambda-cps (cps scope)
                     ,(do-transform
                        (transform (string-append name ":fun") env (car params))
                        (lambda (result-fun)
@@ -155,7 +155,7 @@
                            (lambda (result)
                              `(,result
                                 (yume:continue-new
-                                  (lambda (context result)
+                                  (yume:lambda-continue (context result)
                                     (yume:procedure-call ,result-fun (yume:continue-cps context) result))
                                   cps #f)
                                 scope))))
@@ -165,15 +165,15 @@
                                (transform-params (string-append name "<") env (cdr params))
                                (lambda (result)
                                  `(yume:continue-new
-                                    (lambda (context result)
+                                    (yume:lambda-continue (context result)
                                       (yume:procedure-call result (yume:continue-cps context) ,result))
                                     cps #f))
                                (lambda (result)
                                  `(yume:continue-new
-                                    (lambda (context result)
+                                    (yume:lambda-continue (context result)
                                       (,result
                                         (yume:continue-new
-                                          (lambda (context result)
+                                          (yume:lambda-continue (context result)
                                             (yume:procedure-call (yume:continue-scope context) (yume:continue-cps context) result))
                                           (yume:continue-cps context) (yume:continue-scope context))))
                                     cps scope)))
@@ -217,10 +217,10 @@
                      (transform (string-append name ":false") env false)))
                  (lambda (result)
                    `(yume:label
-                      (lambda (cps scope)
+                      (yume:lambda-cps (cps scope)
                         (,result
                           (yume:continue-new
-                            (lambda (context result)
+                            (yume:lambda-continue (context result)
                               (if result
                                 ,(do-transform
                                    (transform (string-append name ":true") env true)

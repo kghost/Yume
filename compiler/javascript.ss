@@ -16,6 +16,7 @@
                             (write-string " = function (cps, scope) {" output)
                             (newline output)
                             (inner)
+                            (write-char #\; output)
                             (newline output)
                             (write-string "};" output)
                             (newline output))
