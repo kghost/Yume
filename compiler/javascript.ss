@@ -5,89 +5,195 @@
 
 (define compile
   (lambda (output p)
-    (letrec ((tokens 
-               `((yume:label
-                   ,(lambda (p)
-                      (let ((name (caddr p)) (fun (cadr p)))
-                        (lambda ()
-                          (let ((inner ((compile fun))))
-                            (write-string "var " output)
-                            (write-string name output)
-                            (write-string " = function (cps, scope) {" output)
-                            (newline output)
-                            (inner)
-                            (write-char #\; output)
-                            (newline output)
-                            (write-string "};" output)
-                            (newline output))
-                          (lambda () (write-string name))))))
+    (letrec ((compile-quote
+	       (lambda (p)
+		 (cond
+		   ((pair? p) (write-string "yume.cons(" output)
+			      (compile-quote (car p))
+			      (compile-quote (cdr p)))
+		   ((eq? p '()) (write-string "yume._null_list") output)
+		   ((symbol? p) (write-string "new yume._symbol(\"" output)
+				(write-string (symbol->string p) output)
+				(write-string "\")" output))
+		   ((boolean? p) (write-string (if p
+						 "yume._boolean._true"
+						 "yume._boolean._false")))
+		   ((number? p) (write-string "new yume._number(" output)
+				(write p)
+				(write-string ")" output))
+		   ((char? p) (write-string "new yume._char(\"" output)
+			      (write-char p)
+			      (write-string "\")" output))
+		   ((string? p) (write-string "new yume._string(\"" output)
+				(write-string p output)
+				(write-string "\")" output))
+		   ((vector? p) (raise "TODO"))
+		   (else (raise (list "internal-compile-error" "unknown quote data" p))))))
 
-                 (lambda
-                   ,(lambda (p)
-                      (if (null-list? (cdddr p))
-                        (compile (caddr p))
-                        (raise (list "internal-compile-error" p "contains multiple statements")))))
 
-                 ))
+	     (tokens
+	       `((yume:label
+		   ,(lambda (p)
+		      (compile (cadr p))))
 
-             (compile
-               (lambda (p)
-                 (cond ((pair? p)
-                        (let ((token (assq (car p) tokens)))
-                          (if token
-                            ((cadr token) p)
-                            (lambda ()
-                              (let ((fun ((compile (car p))))
-                                    (params (reverse (fold
-                                                       (lambda (p tail)
-                                                         (cons
-                                                           ((compile p))
-                                                           tail))
-                                                       '()
-                                                       (cdr p)))))
-                                (lambda ()
-                                  (fun)
-                                  (write-char #\( output)
-                                  (pair-fold
-                                    (lambda (param tail)
-                                      (or (eq? param params) (write-string ", " output))
-                                      ((car param)))
-                                    '()
-                                    params)
-                                  (write-string ")" output)))))))
-                       (else
-                         (lambda ()
-                           (lambda ()
-                             (cond
-                               ((eq? p '()) (write-string "yume:null-list")) ; FIXME: null-list should only appear inside quote
-                               ((symbol? p) (write-string (symbol->string p) output))
-                               ((boolean? p) (write-string (if p
-                                                             "yume:boolean-true"
-                                                             "yume:boolean-false")))
-                               ((number? p) (write-string "yume:number-new(") (write p) (write-char #\)))
-                               ((char? p) (write-string "yume:char-new(") (write-char p) (write-char #\)))
-                               ((string? p) (write-string "yume:string-new(\"") (write-string p) (write-string "\")")) ; XXX: if string contains " ?!
-                               ((vector? p) (raise "TODO"))
-                               (else (raise (list "internal-compile-error" "unknown data" p)))))))))))
+		 (yume:quote
+		   ,(lambda (p)
+		      (lambda ()
+			(compile-quote (cadr p)))))
 
-      (((compile p))))))
+		 (yume:cons
+		   ,(lambda (p)
+		      (let ((a (compile (cadr p)))
+			    (d (compile (caddr p))))
+			(lambda ()
+			  (write-string "yume.cons(" output)
+			  (a)
+			  (write-string ", " output)
+			  (d)
+			  (write-char #\) output)))))
 
-(compile (current-output-port) '(yume:label
-                                  (lambda (cps scope)
-                                    (yume:procedure-call
-                                      (yume:procedure-new
-                                        (yume:label
-                                          (lambda (cps scope)
-                                            (yume:procedure-call
-                                              (yume:global-get (quote cons))
-                                              cps
-                                              (cons 2 (cons 3 (quote ())))))
-                                          "g:fun:lambda:e")
-                                        0
-                                        #f
-                                        scope)
-                                      cps
-                                      '()))
-                                  "g")
-         )
+		 (yume:global-get
+		   ,(lambda (p)
+		      (lambda ()
+			(write-string "yume.global_get(\"" output)
+			(write-string (symbol->string (cadr p)))
+			(write-string "\")" output))))
+
+		 (yume:procedure-new
+		   ,(lambda (p)
+		      (let ((fun (compile (cadr p)))
+			    (scope (compile (caddr p))))
+			(lambda ()
+			  (write-string "new yume._procedure(" output)
+			  (fun)
+			  (write-string ", " output)
+			  (scope)
+			  (write-string ", " output)
+			  (write (cadddr p))
+			  (write-string ", " output)
+			  (if (car (cddddr p))
+			    (write-string "true" output)
+			    (write-string "false" output))
+			  (write-string ")" output)))))
+
+		 (yume:procedure-call
+		   ,(lambda (p)
+		      (let ((fun (compile (cadr p)))
+			    (cps (compile (caddr p)))
+			    (args (compile (cadddr p))))
+			(lambda ()
+			  (write-string "yume.procedure_call(" output)
+			  (fun)
+			  (write-string ", " output)
+			  (cps)
+			  (write-string ", " output)
+			  (args)
+			  (write-string ")" output)))))
+
+		 (yume:lambda-cps
+		   ,(lambda (p)
+		      (let ((name (cadr p)) (fun (compile (cadddr p))))
+			(write-string "var P_" output)
+			(write-string name output)
+			(write-string " = function (cps, scope) {" output)
+			(newline output)
+			(write-string "return " output)
+			(fun)
+			(write-char #\; output)
+			(newline output)
+			(write-string "};" output)
+			(newline output)
+			(lambda ()
+			  (write-string "P_" output)
+			  (write-string name output)))))
+
+		 (yume:lambda-continue
+		   ,(lambda (p)
+		      (if (null-list? (cdddr p))
+			(compile (caddr p))
+			(raise (list "internal-compile-error" p "contains multiple statements")))))
+
+		 ))
+
+	     (compile
+	       (lambda (p)
+		 (cond ((pair? p)
+			(let ((token (assq (car p) tokens)))
+			  (if token
+			    ((cadr token) p)
+			    (let ((fun (compile (car p)))
+				  (params (reverse (fold
+						     (lambda (p tail)
+						       (cons
+							 (compile p)
+							 tail))
+						     '()
+						     (cdr p)))))
+			      (lambda ()
+				(fun)
+				(write-char #\( output)
+				(pair-fold
+				  (lambda (param tail)
+				    (or (eq? param params) (write-string ", " output))
+				    ((car param)))
+				  '()
+				  params)
+				(write-string ")" output))))))
+		       (else
+			 (lambda ()
+			   (cond
+			     ((symbol? p) (write-string (symbol->string p) output))
+			     ((boolean? p) (write-string (if p
+							   "yume._boolean._true"
+							   "yume._boolean._false")))
+			     ((number? p) (write-string "new yume._number(" output)
+					  (write p)
+					  (write-string ")" output))
+			     ((char? p) (write-string "new yume._char(\"" output)
+					(write-char p)
+					(write-string "\")" output))
+			     ((string? p) (write-string "new yume._string(\"" output)
+					  (write-string p output)
+					  (write-string "\")" output))
+			     ((vector? p) (raise "TODO"))
+			     (else (raise (list "internal-compile-error" "unknown data" p))))))))))
+
+      (write-string "var " output)
+      (if (pair? (cdr (command-line)))
+	(write-string (cadr (command-line)) output)
+	(write-string "unamed_module" output))
+      (write-string " = function() {" output)
+      (newline output)
+      (let ((ret (compile p)))
+	(write-string "return ")
+	(ret)
+	(write-string ";")
+	(newline output)
+	(write-string "};")
+	(newline output)
+	))))
+
+(compile (current-output-port)
+	 '(yume:label
+	    (yume:lambda-cps
+	      "g"
+	      (cps scope)
+	      (yume:procedure-call
+		(yume:procedure-new
+		  (yume:label
+		    (yume:lambda-cps
+		      "g_fun_lambda_e"
+		      (cps scope)
+		      (yume:procedure-call
+			(yume:global-get cons)
+			cps
+			(yume:cons 2 (yume:cons 3 (yume:quote ())))))
+		    "g_fun_lambda_e")
+		  scope
+		  0
+		  #f)
+		cps
+		(yume:quote ())))
+	    "g")
+	 )
 

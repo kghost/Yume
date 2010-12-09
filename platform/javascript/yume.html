@@ -1,0 +1,23 @@
+<html>
+	<head>
+		<title>Yume scheme interpreter</title>
+		<script type="text/javascript" src="http://code.jquery.com/jquery-1.4.4.js"></script>
+		<script type="text/javascript" src="build-in-type.js"></script>
+		<script type="text/javascript" src="build-in-procedure.js"></script>
+		<script type="text/javascript" src="gen/test.js"></script>
+		<script type="text/javascript">
+			jQuery(window).load(function() {
+				var module_test = test();
+				for (var r = module_test(new yume._continue(function(cps, scope, result) {
+						jQuery("#yume-result").val(result);
+						return undefined;
+					}, null), yume._null_list);
+					r !== undefined;
+					r = r.cps.call(r.result)) {}
+			});
+		</script>
+	</head>
+	<body>
+		<input id="yume-result" type="text" title="Yume result">
+	</body>
+</html>
