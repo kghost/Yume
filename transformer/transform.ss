@@ -10,39 +10,39 @@
 	     (non-inline (cadr result)))))
 
        (transform-begin
-	 (lambda (name env expressions)
-	   (let ((expr-name (string-append name "_e")))
+	 (lambda (name index env expressions)
+	   (let ((expr-name (string-append name (number->string index) "_e")))
 	     (if (pair? expressions)
 	       (if (eq? '() (cdr expressions))
 		 (transform expr-name env (car expressions))
 		 (do-transform
 		   (transform expr-name env (car expressions))
 		   (lambda (result)
-		     (transform-begin (string-append name "s") env (cdr expressions)))
+		     (transform-begin name (+ index 1) env (cdr expressions)))
 		   (lambda (result)
 		     `(#f (yume:label
 			    (yume:lambda-cps
-			      ,name
+			      ,(string-append name (number->string index))
 			      (cps scope)
 			      (,result
 				,(do-transform
-				   (transform-begin (string-append name "s") env (cdr expressions))
+				   (transform-begin name (+ index 1) env (cdr expressions))
 				   (lambda (result)
 				     `(yume:continue-new
 					(yume:lambda-continue
-					  ,name
+					  ,(string-append name (number->string index))
 					  (cps scope result)
 					  (yume:continue-call cps ,result))
 					cps #f))
 				   (lambda (result)
 				     `(yume:continue-new
 					(yume:lambda-continue
-					  ,name
+					  ,(string-append name (number->string index))
 					  (cps scope result)
 					  (,result cps scope))
 					cps scope)))
 				scope))
-			    ,name)))))
+			    ,(string-append name (number->string index)))))))
 	       (raise (list "transform-error" "begin is not list" expressions))))))
 
        (transform-quote
@@ -92,7 +92,7 @@
 		   (every symbol? args))
 	       `(#t (yume:procedure-new
 		      ,(do-transform
-			 (transform-begin (string-append name "_lambda") (cons args env) expressions)
+			 (transform-begin (string-append name "_f_s") 0 (cons args env) expressions)
 			 (lambda (result)
 			   `(yume:label
 			      (yume:lambda-cps
@@ -105,53 +105,53 @@
 	       (raise (list "transform-error" "lambda args error" args))))))
 
        (transform-params
-	 (lambda (name env params)
+	 (lambda (name index env params)
 	   (if (pair? params)
 	     (do-transform
-	       (transform-params (string-append name "p") env (cdr params))
+	       (transform-params name (+ index 1) env (cdr params))
 	       (lambda (result)
 		 (do-transform
-		   (transform (string-append name "_e") env (car params))
+		   (transform (string-append name (number->string index) "_e") env (car params))
 		   (lambda (result-e)
 		     `(#t (yume:cons ,result-e ,result)))
 		   (lambda (result-e)
 		     `(#f (yume:label
 			    (yume:lambda-cps
-			      ,name
+			      ,(string-append name (number->string index))
 			      (cps scope)
 			      (,result-e
 				(yume:continue-new
 				  (yume:lambda-continue
-				    ,name
+				    ,(string-append name (number->string index))
 				    (cps scope result)
 				    (yume:continue-call cps (yume:cons result ,result)))
 				  cps #f)
 				scope))
-			    ,name)))))
+			    ,(string-append name (number->string index)))))))
 	       (lambda (result)
 		 `(#f (yume:label
 			(yume:lambda-cps
-			  ,name
+			  ,(string-append name (number->string index))
 			  (cps scope)
 			  (,result
 			    ,(do-transform
-			       (transform (string-append name "_e") env (car params))
+			       (transform (string-append name (number->string index) "_e") env (car params))
 			       (lambda (result-e)
 				 `(yume:continue-new
 				    (yume:lambda-continue
-				      ,name
+				      ,(string-append name (number->string index))
 				      (cps scope result)
 				      (yume:continue-call cps (yume:cons ,result-e result)))
 				    cps #f))
 			       (lambda (result-e)
 				 `(yume:continue-new
 				    (yume:lambda-continue
-				      ,(string-append name "_1")
+				      ,(string-append name (number->string index) "_1")
 				      (cps scope result)
 				      (,result-e
 					(yume:continue-new
 					  (yume:lambda-continue
-					    ,(string-append name "_2")
+					    ,(string-append name (number->string index) "_2")
 					    (cps scope result)
 					    ; borrow scope to pass result
 					    (yume:continue-call cps (yume:cons result scope)))
@@ -159,7 +159,7 @@
 					scope))
 				    cps scope))))
 			  scope)
-			,name))))
+			,(string-append name (number->string index))))))
 	     (if (null-list? params)
 	       '(#t (yume:quote ()))
 	       (raise "transform-error" "call params is not list")))))
@@ -171,10 +171,10 @@
 		    ,name
 		    (cps scope)
 		    ,(do-transform
-		       (transform (string-append name "_fun") env (car params))
+		       (transform (string-append name "_call") env (car params))
 		       (lambda (result-fun)
 			 (do-transform
-			   (transform-params (string-append name "_p") env (cdr params))
+			   (transform-params (string-append name "_p") 0 env (cdr params))
 			   (lambda (result)
 			     `(yume:procedure-call ,result-fun cps ,result))
 			   (lambda (result)
@@ -189,7 +189,7 @@
 		       (lambda (result)
 			 `(,result
 			    ,(do-transform
-			       (transform-params (string-append name "_p") env (cdr params))
+			       (transform-params (string-append name "_p") 0 env (cdr params))
 			       (lambda (result)
 				 `(yume:continue-new
 				    (yume:lambda-continue

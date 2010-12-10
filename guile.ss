@@ -9,6 +9,6 @@
 (define build-in-macros (interpret (open-input-file "library/build-in-macros.ss")))
 (define program (interpret (current-input-port)))
 
-(pretty-print (transform (expand (cons 'begin (append build-in-macros program)))))
+(write (transform (expand (cons 'begin (append build-in-macros program)))))
 (newline)
 

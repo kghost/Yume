@@ -113,6 +113,21 @@
 			(compile (caddr p))
 			(raise (list "internal-compile-error" p "contains multiple statements")))))
 
+		   ,(lambda (p)
+		      (let ((name (cadr p)) (fun (compile (cadddr p))))
+			(write-string "var C_" output)
+			(write-string name output)
+			(write-string " = function (cps, scope) {" output)
+			(newline output)
+			(write-string "return " output)
+			(fun)
+			(write-char #\; output)
+			(newline output)
+			(write-string "};" output)
+			(newline output)
+			(lambda ()
+			  (write-string "P_" output)
+			  (write-string name output)))))
 		 ))
 
 	     (compile
@@ -172,28 +187,3 @@
 	(write-string "};")
 	(newline output)
 	))))
-
-(compile (current-output-port)
-	 '(yume:label
-	    (yume:lambda-cps
-	      "g"
-	      (cps scope)
-	      (yume:procedure-call
-		(yume:procedure-new
-		  (yume:label
-		    (yume:lambda-cps
-		      "g_fun_lambda_e"
-		      (cps scope)
-		      (yume:procedure-call
-			(yume:global-get cons)
-			cps
-			(yume:cons 2 (yume:cons 3 (yume:quote ())))))
-		    "g_fun_lambda_e")
-		  scope
-		  0
-		  #f)
-		cps
-		(yume:quote ())))
-	    "g")
-	 )
-
