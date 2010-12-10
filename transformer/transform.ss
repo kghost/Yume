@@ -48,7 +48,7 @@
        (transform-quote
 	 (lambda (name env expression)
 	   (if (and (pair? expression) (null-list? (cdr expression)))
-	     `(#t (quote ,(car expression)))
+	     `(#t (yume:quote ,(car expression)))
 	     (raise (list "transform-error" "quote" expression)))))
 
        (transform-define
@@ -82,14 +82,7 @@
        (transform-lambda
 	 (lambda (name env params)
 	   (let ((args (car params)) (expressions (cdr params)))
-	     (if (letrec ((every ; return true if all element in list satisfy f, even if list is not a list
-			    (lambda (f list)
-			      (if (pair? list)
-				(and (f (car list)) (every f (cdr list)))
-				(if (null-list? list)
-				  #t
-				  (f list))))))
-		   (every symbol? args))
+	     (if (dotted-every symbol? args)
 	       `(#t (yume:procedure-new
 		      ,(do-transform
 			 (transform-begin (string-append name "_f_s") 0 (cons args env) expressions)
@@ -101,7 +94,7 @@
 				(yume:continue-call cps ,result))
 			      ,name))
 			 (lambda (result) result))
-		      scope ,(length args) #f))
+		      scope ,(dotted-length args) ,(dotted-list? args)))
 	       (raise (list "transform-error" "lambda args error" args))))))
 
        (transform-params
@@ -214,30 +207,88 @@
 			    scope))))
 		  ,name))))
 
+       (dotted-length
+	 (lambda (lis)
+	   (if (pair? lis)
+	     (+ 1 (dotted-length (cdr lis)))
+	     0)))
+
+       (dotted-every
+	 (lambda (f lis)
+	   (if (pair? lis)
+	     (and (f (car lis)) (dotted-every f (cdr lis)))
+	     (or (eq? '() lis) (f lis)))))
+
+       (dotted-fold
+	 (lambda (kons kdot knil lis)
+	   (if (pair? lis)
+	     (dotted-fold kons kdot (kons (car lis) knil) (cdr lis))
+	     (kdot lis knil))))
+
+       (dotted-pair-fold
+	 (lambda (kons kdot knil lis)
+	   (if (pair? lis)
+	     (dotted-pair-fold kons kdot (kons lis knil) (cdr lis))
+	     (kdot lis knil))))
+
        (transform-variable
 	 (lambda (name env variable)
-	   (letrec ((variable-frame-find
-		      (lambda (a frame)
-			(cond ((pair? frame)
-			       (if (eq? variable (car frame))
-				 (list 'yume:car a)
-				 (variable-frame-find (list 'yume:cdr a) (cdr frame))))
-			      (else (if (eq? variable frame)
-				      a
-				      #f)))))
-		    (variable-find
-		      (lambda (a env)
-			(if (null-list? env)
-			  `(yume:global-get ,variable)
-			  (let ((r (variable-frame-find (list 'yume:car a) (car env))))
-			    (if r
-			      r
-			      (variable-find (list 'yume:cdr a) (cdr env))))))))
-	     (list #t (variable-find 'scope env)))))
+	   (call/cc
+	     (lambda (return)
+	       (fold
+		 (lambda (frame tail)
+		   (dotted-fold
+		     (lambda (var tail)
+		       (if (eq? var variable)
+			 (return `(#t (yume:car ,tail)))
+			 (list 'yume:cdr tail)))
+		     (lambda (var tail)
+		       (and (eq? var variable) (return (list #t tail))))
+		     (list 'yume:car tail) frame)
+		   (list 'yume:cdr tail))
+		 'scope env)
+	       `(#t (yume:global-get ,variable))))))
 
        (transform-set!
-	 (lambda (name env variable)
-	   'set!))
+	 (lambda (name env args)
+	   (let ((variable (car args)) (value (cadr args)) (null (cddr args)))
+	     (if (eq? '() null)
+	       (let ((r (lambda (result)
+			 (call/cc
+			   (lambda (return)
+			     (fold
+			       (lambda (frame tail)
+				 (if (pair? frame)
+				   (dotted-pair-fold
+				     (lambda (lis tail)
+				       (cond ((eq? (car lis) variable)
+					      (return `(yume:set-car! ,tail ,result)))
+					     ((eq? (cdr lis) variable)
+					      (return `(yume:set-cdr! ,tail ,result)))
+					     (else (list 'yume:cdr tail))))
+				     (lambda x x)
+				     (list 'yume:car tail) frame)
+				   (and (eq? frame variable) (return `(yume:set-car! ,tail ,result))))
+				 (list 'yume:cdr tail))
+			       'scope env)
+			     `(yume:global-set ,variable ,result))))))
+		 `(#f (yume:label
+			(yume:lambda-cps
+			  ,name
+			  (cps scope)
+			  ,(do-transform
+			     (transform (string-append name "_set") env value)
+			     (lambda (result) `(yume:continue-call cps ,(r result)))
+			     (lambda (result)
+			       `(,result
+				  (yume:continue-new
+				    (yume:lambda-continue
+				      ,name
+				      (cps scope result)
+				      (yume:continue-call cps ,(r 'result)))
+				    cps #f)
+				  scope)))))))
+	       (raise (list "transform-error" "syntax error: set!" args))))))
 
        (transform-if
 	 (lambda (name env args)
@@ -259,19 +310,19 @@
 				(yume:lambda-continue
 				  ,name
 				  (cps scope result)
-				  (if result
-				    ,(do-transform
-				       (transform (string-append name "_true") env true)
-				       (lambda (result)
-					 `(yume:continue-call (yume:continue-cps cps) ,result))
-				       (lambda (result)
-					 `(,result cps scope)))
-				    ,(do-transform
-				       (transform (string-append name "_false") env false)
-				       (lambda (result)
-					 `(yume:continue-call (yume:continue-cps cps) ,result))
-				       (lambda (result)
-					 `(,result cps scope)))))
+				  (yume:if result
+					   ,(do-transform
+					      (transform (string-append name "_true") env true)
+					      (lambda (result)
+						`(yume:continue-call cps ,result))
+					      (lambda (result)
+						`(,result cps scope)))
+					   ,(do-transform
+					      (transform (string-append name "_false") env false)
+					      (lambda (result)
+						`(yume:continue-call cps ,result))
+					      (lambda (result)
+						`(,result cps scope)))))
 				cps scope)
 			      scope))
 			  ,name))))
@@ -285,6 +336,7 @@
 			  ((eq? op 'define) (transform-define name env args))
 			  ((eq? op 'lambda) (transform-lambda name env args))
 			  ((eq? op 'if) (transform-if name env args))
+			  ((eq? op 'set!) (transform-set! name env args))
 			  (else (transform-call name env expression)))))
 		 ((symbol? expression) (transform-variable name env expression))
 		 (else (transform-instant name env expression)))))

@@ -1,4 +1,4 @@
 #! /bin/sh
 
-echo '(cons (cons 1 2) (cons 3 4))' | guile -l platform/javascript/compile.ss test > platform/javascript/gen/test.js
+cat interpreter/reader.ss | guile -s platform/javascript/compile.ss test > platform/javascript/gen/test.js
 

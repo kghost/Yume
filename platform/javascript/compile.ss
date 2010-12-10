@@ -5,8 +5,6 @@
 (load "../../transformer/transform.ss")
 (load "../../compiler/javascript.ss")
 
-(use-modules (ice-9 pretty-print))
-
 (define build-in-macros (interpret (open-input-file "library/build-in-macros.ss")))
 (define program (interpret (current-input-port)))
 

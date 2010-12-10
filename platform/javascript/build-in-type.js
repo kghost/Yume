@@ -29,7 +29,7 @@ yume._symbol.prototype = {
 
 // ******************* char ********************
 yume._char = function(c) {
-	if (typeof c !== "string" || c.length !== 1) {
+	if (typeof c !== "number") {
 		throw "Char constructor: " + c;
 	}
 	this.v = c;
@@ -139,6 +139,12 @@ yume._pair.prototype = {
 	},
 	cdr: function() {
 		return this.d;
+	},
+	set_car: function(v) {
+		this.a = v;
+	},
+	set_cdr: function(v) {
+		this.d = v;
 	}
 };
 
@@ -202,6 +208,22 @@ yume.is_number = function(p) {
 // **************** list helper ****************
 yume.cons = function(head, tail) {
 	return new yume._pair(head, tail);
+};
+
+yume.car = function(p) {
+	return p.car();
+};
+
+yume.cdr = function(p) {
+	return p.cdr();
+};
+
+yume.set_car_bang = function(p, v) {
+	p.set_car(v);
+};
+
+yume.set_cdr_bang = function(p, v) {
+	p.set_cdr(v);
 };
 
 yume.is_list = function(p) {
