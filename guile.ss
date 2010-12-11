@@ -6,13 +6,14 @@
 (load "transformer/transform.ss")
 
 (define build-in-macros (interpret (open-input-file "library/build-in-macros.ss")))
+(define build-in-syntax (interpret (open-input-file "library/build-in-syntax.ss")))
 (define program (interpret (current-input-port)))
 
 (let ((output (current-output-port)))
   ((if (isatty? output)
      pretty-print
      write)
-   (transform (expand (cons 'begin (append build-in-macros program))))
+   (transform (expand (cons 'begin (append build-in-syntax build-in-macros program))))
    output))
 (newline)
 

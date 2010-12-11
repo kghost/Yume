@@ -90,11 +90,6 @@
 			 (bod (lambda () . body)))
 		     (var) ... (bod))))))
 
-(define-syntax begin
-  (syntax-rules ()
-		((begin exp ...)
-		 ((lambda () exp ...)))))
-
 (define-syntax do
   (syntax-rules ()
 		((do ((var init step ...) ...)

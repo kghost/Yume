@@ -1,10 +1,11 @@
 (use-modules (srfi srfi-1))
 (use-modules (ice-9 rw))
+(use-modules (ice-9 pretty-print))
 
 (define write-string write-string/partial)
 
 (define compile
-  (lambda (output p)
+  (lambda (output p module)
     (letrec ((compile-quote
 	       (lambda (p)
 		 (cond
@@ -35,7 +36,27 @@
 	     (tokens
 	       `((yume:label
 		   ,(lambda (p)
-		      (compile (cadr p))))
+		      (let ((r (compile (cadr p))))
+			(pretty-print
+			  (map (lambda (e)
+				 (if (pair? e)
+				   (map (lambda (e)
+					  (if (pair? e)
+					    (map (lambda (e)
+						   (if (pair? e)
+						     (map (lambda (e)
+							    (if (pair? e)
+							      #\#
+							      e))
+							  e)
+						     e))
+						 e)
+					    e))
+					e)
+				   e))
+			       (cadr p))
+			  output #:per-line-prefix "//")
+			r)))
 
 		 (yume:quote
 		   ,(lambda (p)
@@ -99,9 +120,9 @@
 			(lambda ()
 			  (write-string "(function () {" output)
 			  (newline output)
-			  (write-string "if (" output)
+			  (write-string "if (yume.test(" output)
 			  (test)
-			  (write-string ") {" output)
+			  (write-string ")) {" output)
 			  (newline output)
 			  (write-string "return " output)
 			  (true)
@@ -228,24 +249,20 @@
 			(let ((token (assq (car p) tokens)))
 			  (if token
 			    ((cadr token) p)
-			    (let ((fun (compile (car p)))
-				  (params (reverse (fold
-						     (lambda (p tail)
-						       (cons
-							 (compile p)
-							 tail))
-						     '()
-						     (cdr p)))))
-			      (lambda ()
-				(fun)
-				(write-char #\( output)
-				(pair-fold
-				  (lambda (param tail)
-				    (or (eq? param params) (write-string ", " output))
-				    ((car param)))
-				  '()
-				  params)
-				(write-string ")" output))))))
+			    ; TODO: check transtormer bug, inline fun call must take 2 arguments
+			    (begin
+			      (and (null-list? (cddr p)) (raise p))
+			      (or (null-list? (cdddr p)) (raise p))
+			      (let ((fun (compile (car p)))
+				    (p1 (compile (cadr p)))
+				    (p2 (compile (caddr p))))
+				(lambda ()
+				  (fun)
+				  (write-char #\( output)
+				  (p1)
+				  (write-string ", " output)
+				  (p2)
+				  (write-string ")" output)))))))
 		       (else
 			 (lambda ()
 			   (cond
@@ -265,17 +282,28 @@
 			     ((vector? p) (raise "TODO"))
 			     (else (raise (list "internal-compile-error" "unknown data" p))))))))))
 
-      (write-string "var " output)
-      (if (pair? (cdr (command-line)))
-	(write-string (cadr (command-line)) output)
-	(write-string "unamed_module" output))
-      (write-string " = function() {" output)
-      (newline output)
-      (let ((ret (compile p)))
-	(write-string "return ")
-	(ret)
-	(write-string ";")
-	(newline output)
-	(write-string "};")
-	(newline output)))))
+      (if module
+	(begin
+	  (write-string "var " output)
+	  (write-string module output)
+	  (write-string " = function() {" output)
+	  (newline output)
+	  (let ((ret (compile p)))
+	    (write-string "return ")
+	    (ret)
+	    (write-string ";" output)
+	    (newline output)
+	    (write-string "};" output)
+	    (newline output)))
+
+	(begin
+	  (write-string "(function() {" output)
+	  (newline output)
+	  (let ((ret (compile p)))
+	    (write-string "return " output)
+	    (ret)
+	    (write-string ";" output)
+	    (newline output)
+	    (write-string "})();" output)
+	    (newline output)))))))
 
