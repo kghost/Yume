@@ -100,7 +100,7 @@ jQuery(window).load(function() {
 	};
 
 	yume.open_input_file = function(cps, url) {
-		jQuery.get("files/" + url + ".js", function(data) {
+		jQuery.get("files/" + url, function(data) {
 			run({
 				cps: cps,
 				result: new yume._input(new input(data))
