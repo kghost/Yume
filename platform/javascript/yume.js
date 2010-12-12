@@ -2,7 +2,7 @@ var dummy = function() {};
 
 jQuery(window).load(function() {
 	var run = function(r) {
-		while (r !== undefined) {
+		while (r !== null) {
 			r = yume.continue_run(r.cps, r.result);
 		}
 	};
@@ -96,7 +96,7 @@ jQuery(window).load(function() {
 			var module = eval(data);
 			run(module(cps, yume._null_list));
 		});
-		return undefined; // interrupt schme engine
+		return null; // interrupt schme engine
 	};
 
 	yume.open_input_file = function(cps, url) {
@@ -106,7 +106,7 @@ jQuery(window).load(function() {
 				result: new yume._input(new input(data))
 			});
 		});
-		return undefined; // interrupt schme engine
+		return null; // interrupt schme engine
 	};
 
 	var application = test();
@@ -132,7 +132,7 @@ jQuery(window).load(function() {
 				buffered_output = undefined;
 				running = false;
 				button_run.removeAttr("disabled");
-				return undefined;
+				return null;
 			},
 			null), yume._null_list));
 		}

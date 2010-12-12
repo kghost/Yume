@@ -11,7 +11,10 @@
 		<script type="text/javascript" src="yume.js" />
 	</head>
 	<body>
-		<textarea id="yume-input" rows="10" style="width: 100%">(define x 10)</textarea>
+		<textarea id="yume-input" rows="10" style="width: 100%">(do ((vec (make-vector 5))
+			(i 0 (+ i 1)))
+			((= i 5) vec)
+		(vector-set! vec i i))</textarea>
 		<br/>
 		<input id="yume-run" value="Run" type="button" />
 		<br/>
