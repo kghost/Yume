@@ -9,7 +9,10 @@ yume._boolean = function(bool) {
 };
 
 yume._boolean.prototype = {
-	__type__: "boolean"
+	__type__: "boolean",
+	eqv: function(that) {
+		return yume.is_boolean(that) && this.v === that.v;
+	}
 };
 
 yume._boolean._true = new yume._boolean(true);
@@ -29,6 +32,9 @@ yume._symbol = function(name) {
 
 yume._symbol.prototype = {
 	__type__: "symbol",
+	eqv: function(that) {
+		return yume.is_symbol(that) && this.name === that.name;
+	},
 	get_name: function() {
 		return this.name;
 	}
@@ -48,6 +54,9 @@ yume._char = function(c) {
 
 yume._char.prototype = {
 	__type__: "char",
+	eqv: function(that) {
+		return yume.is_char(that) && this.v === that.v;
+	},
 	get_value: function() {
 		return this.v;
 	}
@@ -81,14 +90,17 @@ yume._procedure = function(fun, scope, n_args, is_vargs) {
 
 yume._procedure.prototype = {
 	__type__: "procedure",
+	eqv: function(that) {
+		return yume.is_procedure(that) && this.fun === that.fun && this.n_args === that.n_args && this.is_vargs === that.is_vargs && this.scope === that.scope;
+	},
 	_call: function(cps, args) {
 		if (this.is_vargs) {
 			if (yume.length(args) < this.n_args) {
-				throw "runtime-error: Procedure call " + this + " require at lease " + n_args + " provide " + yume.length(args) + " " + args;
+				throw "runtime-error: Procedure call " + this + " require at lease " + this.n_args + " provide " + yume.length(args) + " " + args;
 			}
 		} else {
 			if (yume.length(args) !== this.n_args) {
-				throw "runtime-error: Procedure call " + this + " require " + n_args + " provide " + yume.length(args) + " " + args;
+				throw "runtime-error: Procedure call " + this + " require " + this.n_args + " provide " + yume.length(args) + " " + args;
 			}
 		}
 
@@ -151,6 +163,12 @@ yume.continue_call = function(cps, result) {
 	};
 };
 
+yume.continue_to_procedure = function(cont) {
+	return new yume._procedure(function (cps, scope) {
+		return yume.continue_call(cont, scope.car().car());
+	}, yume._null_list, 1, false);
+};
+
 // ******************* pair ********************
 yume._pair = function(a, d) {
 	this.a = a;
@@ -159,6 +177,9 @@ yume._pair = function(a, d) {
 
 yume._pair.prototype = {
 	__type__: "pair",
+	eqv: function(that) {
+		return this === that;
+	},
 	car: function() {
 		return this.a;
 	},
@@ -179,7 +200,10 @@ yume.is_pair = function(p) {
 
 // ***************** null_list *****************
 yume._null_list = {
-	__type__: "null_list"
+	__type__: "null_list",
+	eqv: function(that) {
+		return yume.is_null_list(that);
+	}
 };
 
 yume.is_null_list = function(p) {
@@ -195,7 +219,13 @@ yume._number = function(n) {
 };
 
 yume._number.prototype = {
-	__type__: "number"
+	__type__: "number",
+	eqv: function(that) {
+		return yume.is_number(that) && this.v === that.v;
+	},
+	get_value: function() {
+		return this.v;
+	}
 };
 
 yume.is_number = function(p) {
@@ -212,8 +242,17 @@ yume._string = function(s) {
 
 yume._string.prototype = {
 	__type__: "string",
+	eqv: function(that) {
+		return yume.is_string(that) && this.v === that.v;
+	},
 	get_value: function() {
 		return this.v;
+	},
+	set_value: function(s) {
+		if (typeof s !== "string") {
+			throw "String set: " + s;
+		}
+		this.v = s;
 	}
 };
 
@@ -223,7 +262,10 @@ yume.is_string = function(p) {
 
 // ******************* port ********************
 yume._eof = {
-	__type__: "eof"
+	__type__: "eof",
+	eqv: function(that) {
+		return yume.is_eof(that);
+	}
 };
 
 yume.is_eof = function(p) {
@@ -240,6 +282,9 @@ yume._input = function(input) {
 
 yume._input.prototype = {
 	__type__: "input",
+	eqv: function(that) {
+		return yume.is_input(that) && this.i === that.i;
+	},
 	read: function() {
 		return this.i.read();
 	},
@@ -268,11 +313,14 @@ yume._output = function(output) {
 
 yume._output.prototype = {
 	__type__: "output",
+	eqv: function(that) {
+		return yume.is_output(that) && this.o === that.o;
+	},
 	write: function(c) {
 		return this.o.write(c);
 	},
 	write_string: function(s) {
-		return this.o.write_string(c);
+		return this.o.write_string(s);
 	},
 	close: function() {
 		return this.i.close();
@@ -311,6 +359,22 @@ yume.is_output = function(p) {
 		return global_table[name];
 	};
 })();
+
+// ****************** values *******************
+yume._values = function(list) {
+	this.l = list;
+};
+
+yume._values.prototype = {
+	__type__: "values",
+	get_value: function() {
+		return this.l;
+	}
+};
+
+yume.is_values = function(p) {
+	return typeof p === "object" && yume._values.prototype.isPrototypeOf(p);
+};
 
 // **************** list helper ****************
 yume.cons = function(head, tail) {

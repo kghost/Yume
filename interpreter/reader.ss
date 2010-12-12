@@ -161,12 +161,12 @@
 					  (else (raise "internal-parse-error"))))
 		     (else (raise "internal-parse-error")))))))
 
-       (parse-quote
-	 (lambda (c input)
+       (parse-quote*
+	 (lambda (c input sym)
 	   (let* ((datum (parse-datum c input)) (char (car datum)) (result (cdr datum)))
 	     (if (char? char)
-	       (cons char (list 'quote result))
-	       (raise (list "parse-error" "quote" result))))))
+	       (cons char (list sym result))
+	       (raise (list "parse-error" sym result))))))
 
        (parse-string
 	 (lambda (c pre input)
@@ -175,6 +175,7 @@
 				 (cond ((eqv? char #\") (parse-string (read-char input) (cons #\" pre) input))
 				       ((eqv? char #\\) (parse-string (read-char input) (cons #\\ pre) input))
 				       (else (raise (list "parse-error" "unknown string escape" char))))))
+		 ((eof-object? c) (raise (list "parse-error" "eof inside string")))
 		 (else (parse-string (read-char input) (cons c pre) input)))))
 
        (parse-comment
@@ -191,7 +192,9 @@
 		 ((or (eqv? c #\+) (eqv? c #\-)) (parse-number-sign (read-char input) (list c) input))
 		 ((eqv? c #\#) (parse-sharp (read-char input) input))
 		 ((eqv? c #\.) (parse-dot (read-char input) input))
-		 ((eqv? c #\') (parse-quote (read-char input) input))
+		 ((eqv? c #\') (parse-quote* (read-char input) input 'quote))
+		 ((eqv? c #\`) (parse-quote* (read-char input) input 'quasiquote))
+		 ((eqv? c #\,) (parse-quote* (read-char input) input 'unquote))
 		 ((eqv? c #\") (parse-string (read-char input) '() input))
 		 ((eqv? c #\;) (parse-comment (read-char input) input))
 		 ((delimiter? c) (cond ((space? c) (parse-datum (read-char input) input))

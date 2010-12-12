@@ -1,28 +1,41 @@
+var js_bool_to_scheme_bool = function(b) {
+	return b ? yume._boolean._true: yume._boolean._false;
+};
+
 // ********** Equivalence predicates ***********
 yume.global_add("eqv?", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var me = frame.car();
+	var you = frame.cdr().car();
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(me.eqv(you))
+	};
+
 },
-yume._null_list, 0, true));
+yume._null_list, 2, false));
 
 yume.global_add("eq?", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var me = frame.car();
+	var you = frame.cdr().car();
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(me.eqv(you))
+	};
 },
-yume._null_list, 0, true));
-
-yume.global_add("equal?", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
-},
-yume._null_list, 0, true));
+yume._null_list, 2, false));
 
 // *********** Numerical operations ************
 yume.global_add("number?", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var n = frame.car();
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(yume.is_number(n))
+	};
 },
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
 yume.global_add("complex?", new yume._procedure(function(cps, scope) {
 	throw "not-implement";
@@ -284,28 +297,30 @@ yume._null_list, 0, true));
 
 // ******** Numerical input and output *********
 yume.global_add("number->string", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var n = frame.car();
+	if (!yume.is_number(n)) {
+		throw "runtime-error: " + n + "is not number";
+	}
+	return {
+		cps: cps,
+		result: new yume._string("" + n.get_value())
+	};
 },
-yume._null_list, 0, true));
-
-yume.global_add("number->string", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
-},
-yume._null_list, 0, true));
-
-yume.global_add("string->number", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
-},
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
 yume.global_add("string->number", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var s = frame.car();
+	if (!yume.is_string(s)) {
+		throw "runtime-error: " + s + "is not string";
+	}
+	return {
+		cps: cps,
+		result: new yume._number(parseInt(s.get_value(), 10))
+	};
 },
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
 // ************** Pairs and lists **************
 yume.global_add("pair?", new yume._procedure(function(cps, scope) {
@@ -313,7 +328,7 @@ yume.global_add("pair?", new yume._procedure(function(cps, scope) {
 	var p = frame.car();
 	return {
 		cps: cps,
-		result: yume.is_pair(p) ? yume._boolean._true: yume._boolean._false
+		result: js_bool_to_scheme_bool(yume.is_pair(p))
 	};
 },
 yume._null_list, 1, false));
@@ -390,7 +405,7 @@ yume.global_add("symbol?", new yume._procedure(function(cps, scope) {
 	var p = frame.car();
 	return {
 		cps: cps,
-		result: yume.is_symbol(p) ? yume._boolean._true: yume._boolean._false
+		result: js_bool_to_scheme_bool(yume.is_symbol(p))
 	};
 },
 yume._null_list, 1, false));
@@ -422,25 +437,176 @@ yume.global_add("string->symbol", new yume._procedure(function(cps, scope) {
 yume._null_list, 1, false));
 
 // **************** Characters *****************
-// TODO: ...
+yume.global_add("char?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var c = frame.car();
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(yume.is_char(c))
+	};
+},
+yume._null_list, 1, false));
+
+yume.global_add("char=?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var c1 = frame.car();
+	var c2 = frame.cdr().car();
+	if (!yume.is_char(c1)) {
+		throw "runtime-error: " + c1 + " is not char";
+	}
+	if (!yume.is_char(c2)) {
+		throw "runtime-error: " + c2 + " is not char";
+	}
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(c1.get_value() === c2.get_value())
+	};
+},
+yume._null_list, 2, false));
+
+yume.global_add("char<?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var c1 = frame.car();
+	var c2 = frame.cdr().car();
+	if (!yume.is_char(c1)) {
+		throw "runtime-error: " + c1 + " is not char";
+	}
+	if (!yume.is_char(c2)) {
+		throw "runtime-error: " + c2 + " is not char";
+	}
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(c1.get_value() < c2.get_value())
+	};
+},
+yume._null_list, 2, false));
+
+yume.global_add("char>?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var c1 = frame.car();
+	var c2 = frame.cdr().car();
+	if (!yume.is_char(c1)) {
+		throw "runtime-error: " + c1 + " is not char";
+	}
+	if (!yume.is_char(c2)) {
+		throw "runtime-error: " + c2 + " is not char";
+	}
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(c1.get_value() > c2.get_value())
+	};
+},
+yume._null_list, 2, false));
+
+yume.global_add("char<=?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var c1 = frame.car();
+	var c2 = frame.cdr().car();
+	if (!yume.is_char(c1)) {
+		throw "runtime-error: " + c1 + " is not char";
+	}
+	if (!yume.is_char(c2)) {
+		throw "runtime-error: " + c2 + " is not char";
+	}
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(c1.get_value() <= c2.get_value())
+	};
+},
+yume._null_list, 2, false));
+
+yume.global_add("char>=?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var c1 = frame.car();
+	var c2 = frame.cdr().car();
+	if (!yume.is_char(c1)) {
+		throw "runtime-error: " + c1 + " is not char";
+	}
+	if (!yume.is_char(c2)) {
+		throw "runtime-error: " + c2 + " is not char";
+	}
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(c1.get_value() >= c2.get_value())
+	};
+},
+yume._null_list, 2, false));
+
+yume.global_add("char->integer", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var c = frame.car();
+	if (!yume.is_char(c)) {
+		throw "runtime-error: " + c + " is not char";
+	}
+	return {
+		cps: cps,
+		result: new yume._number(c.get_value())
+	};
+},
+yume._null_list, 1, false));
+
+yume.global_add("integer->char", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var c = frame.car();
+	if (!yume.is_null_list(c)) {
+		throw "runtime-error: " + c + " is not number";
+	}
+	return {
+		cps: cps,
+		result: new yume._char(c.get_value())
+	};
+},
+yume._null_list, 1, false));
+
 // ****************** Strings ******************
 yume.global_add("string?", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var s = frame.car();
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(yume.is_string(s))
+	};
 },
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
 yume.global_add("make-string", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var n = frame.car();
+	if (!yume.is_number(n)) {
+		throw "runtime-error: " + n + "is not number";
+	}
+	var c;
+	if (yume.is_pair(frame.cdr())) {
+		var ch = frame.cdr().car();
+		if (!yume.is_char(ch)) {
+			throw "runtime-error: " + ch + "is not char";
+		}
+		c = String.fromCharCode(ch.get_value());
+		if (!yume.is_null_list(frame.cdr().cdr())) {
+			throw "runtime-error: " + frame + " extra arguments";
+		}
+	} else {
+		c = " ";
+	}
+	return {
+		cps: cps,
+		result: new yume._string(new Array(n.get_value() + 1).join(c))
+	};
 },
-yume._null_list, 0, true));
+yume._null_list, 1, true));
 
 yume.global_add("string-length", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var s = frame.car();
+	if (!yume.is_string(s)) {
+		throw "runtime-error: " + s + "is not string";
+	}
+	return {
+		cps: cps,
+		result: new yume._number(s.get_value().length)
+	};
 },
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
 yume.global_add("string-ref", new yume._procedure(function(cps, scope) {
 	throw "not-implement";
@@ -449,10 +615,31 @@ yume.global_add("string-ref", new yume._procedure(function(cps, scope) {
 yume._null_list, 0, true));
 
 yume.global_add("string-set!", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var s = frame.car();
+	var i = frame.cdr().car();
+	var c = frame.cdr().cdr().car();
+	if (!yume.is_string(s)) {
+		throw "runtime-error: " + s + "is not string";
+	}
+	if (!yume.is_number(i)) {
+		throw "runtime-error: " + i + "is not number";
+	}
+	if (!yume.is_char(c)) {
+		throw "runtime-error: " + c + "is not char";
+	}
+	var index = i.get_value();
+	var v = s.get_value();
+	if (index >= v.length) {
+		throw "runtime-error: " + i + " out of bound";
+	}
+	s.set_value(v.substr(0, index) + String.fromCharCode(c.get_value()) + v.substr(index + 1, v.length));
+	return {
+		cps: cps,
+		result: undefined
+	};
 },
-yume._null_list, 0, true));
+yume._null_list, 3, false));
 
 yume.global_add("string-append", new yume._procedure(function(cps, scope) {
 	var frame = scope.car();
@@ -480,38 +667,103 @@ yume.global_add("string-append", new yume._procedure(function(cps, scope) {
 },
 yume._null_list, 1, true));
 
+yume.global_add("list->string", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var s = "";
+	for (var l = frame.car(); ! yume.is_null_list(l);
+	l = l.cdr()) {
+		if (!yume.is_pair(l)) {
+			throw "runtime-error: " + l + " is not propper-list";
+		}
+		var c = l.car();
+		if (!yume.is_char(c)) {
+			throw "runtime-error: " + c + " is not char";
+		}
+		s += String.fromCharCode(c.get_value());
+	}
+	return {
+		cps: cps,
+		result: new yume._string(s)
+	};
+},
+yume._null_list, 1, false));
+
 // ***************** Vectors *******************
 // TODO:
 // ************* Control features **************
-yume.global_add("procedure? ", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+yume.global_add("procedure?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var p = frame.car();
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(yume.is_procedure(p))
+	};
 },
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
 yume.global_add("apply", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var p = frame.car();
+	if (!yume.is_procedure(p)) {
+		throw "runtime-error: " + p + " is not procedure";
+	}
+	var llast = frame;
+	var last = frame.cdr();
+	while (!yume.is_null_list(last.cdr())) {
+		llast = last;
+		last = last.cdr();
+	}
+	llast.set_cdr(last.car());
+	return yume.procedure_call(p, cps, frame.cdr());
 },
-yume._null_list, 0, true));
+yume._null_list, 2, true));
 
 yume.global_add("call-with-current-continuation", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var p = frame.car();
+	if (!yume.is_procedure(p)) {
+		throw "runtime-error: " + p + " is not procedure";
+	}
+	return yume.procedure_call(p, cps, yume.cons(yume.continue_to_procedure(cps), yume._null_list));
 },
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
-yume.global_add("values ", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+yume.global_add("values", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var r;
+	if (yume.is_pair(frame) && yume.is_null_list(frame.cdr())) {
+		r = frame.car();
+	} else {
+		r = new yume._values(frame);
+	}
+	return {
+		cps: cps,
+		result: r
+	};
 },
 yume._null_list, 0, true));
 
 yume.global_add("call-with-values", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var producer = frame.car();
+	var consumer = frame.cdr().car();
+	if (!yume.is_procedure(producer)) {
+		throw "runtime-error: " + producer + " is not procedure";
+	}
+	if (!yume.is_procedure(consumer)) {
+		throw "runtime-error: " + consumer + " is not procedure";
+	}
+	return yume.procedure_call(producer, new yume._continue(function(cps, scope, result) {
+		var args;
+		if (yume.is_values(result)) {
+			args = result.get_value();
+		} else {
+			args = yume.cons(result, yume._null_list);
+		}
+		return yume.procedure_call(consumer, cps, args);
+	}, cps), yume._null_list);
 },
-yume._null_list, 0, true));
+yume._null_list, 2, true));
 
 yume.global_add("dynamic-wind", new yume._procedure(function(cps, scope) {
 	throw "not-implement";
@@ -533,7 +785,7 @@ yume.global_add("input-port?", new yume._procedure(function(cps, scope) {
 	var p = frame.car();
 	return {
 		cps: cps,
-		result: yume.is_input(p) ? yume._boolean._true: yume._boolean._false
+		result: js_bool_to_scheme_bool(yume.is_input(p))
 	};
 },
 yume._null_list, 1, false));
@@ -543,7 +795,7 @@ yume.global_add("output-port?", new yume._procedure(function(cps, scope) {
 	var p = frame.car();
 	return {
 		cps: cps,
-		result: yume.is_output(p) ? yume._boolean._true: yume._boolean._false
+		result: js_bool_to_scheme_bool(yume.is_output(p))
 	};
 },
 yume._null_list, 1, false));
@@ -551,7 +803,7 @@ yume._null_list, 1, false));
 yume.global_add("current-input-port", new yume._procedure(function(cps, scope) {
 	return {
 		cps: cps,
-		result: new yume._input(yume.current_input_port())
+		result: yume.current_input_port()
 	};
 },
 yume._null_list, 0, false));
@@ -559,28 +811,36 @@ yume._null_list, 0, false));
 yume.global_add("current-output-port", new yume._procedure(function(cps, scope) {
 	return {
 		cps: cps,
-		result: new yume._output(yume.current_output_port())
+		result: yume.current_output_port()
 	};
 },
 yume._null_list, 0, false));
 
 yume.global_add("open-input-file", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var s = frame.car();
+	if (!yume.is_string(s)) {
+		throw "runtime-error: " + s + " is not string";
+	}
+	return yume.open_input_file(cps, s.get_value());
 },
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
 yume.global_add("open-output-file", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var s = frame.car();
+	if (!yume.is_string(s)) {
+		throw "runtime-error: " + s + " is not string";
+	}
+	return yume.open_output_file(cps, s.get_value());
 },
-yume._null_list, 0, true));
+yume._null_list, 1, false));
 
 yume.global_add("close-input-port", new yume._procedure(function(cps, scope) {
 	var frame = scope.car();
 	var p = frame.car();
 	if (!yume.is_input(p)) {
-		throw "runtime-error: " + s + " is not input port";
+		throw "runtime-error: " + p + " is not input port";
 	}
 	p.close();
 	return {
@@ -660,7 +920,7 @@ yume.global_add("eof-object?", new yume._procedure(function(cps, scope) {
 	var p = frame.car();
 	return {
 		cps: cps,
-		result: yume.is_eof(p) ? yume._boolean._true: yume._boolean._false
+		result: js_bool_to_scheme_bool(yume.is_eof(p))
 	};
 },
 yume._null_list, 1, false));
@@ -680,7 +940,7 @@ yume.global_add("char-ready?", new yume._procedure(function(cps, scope) {
 		p = yume.current_input_port();
 	}
 	var result = p.ready();
-	if (! yume.is_boolean(result)) {
+	if (!yume.is_boolean(result)) {
 		throw "internal-runtime-error: char-ready? return " + result;
 	}
 	return {
@@ -690,6 +950,7 @@ yume.global_add("char-ready?", new yume._procedure(function(cps, scope) {
 },
 yume._null_list, 0, true));
 
+// ****************** Output *******************
 yume.global_add("write-char", new yume._procedure(function(cps, scope) {
 	var frame = scope.car();
 	var c = frame.car();
@@ -735,7 +996,7 @@ yume.global_add("write-string", new yume._procedure(function(cps, scope) {
 	}
 	return {
 		cps: cps,
-		result: p.write(s.get_value())
+		result: p.write_string(s.get_value())
 	};
 },
 yume._null_list, 1, true));

@@ -6,7 +6,18 @@
 
 (define compile
   (lambda (output p module)
-    (letrec ((compile-quote
+    (letrec ((escape
+	       (lambda (s)
+		 (list->string
+		   (fold-right
+		     (lambda (c tail)
+		       (if (or (eqv? c #\\) (eqv? c #\') (eqv? c #\"))
+			 (cons #\\ (cons c tail))
+			 (cons c tail)))
+		     '()
+		     (string->list s)))))
+
+	     (compile-quote
 	       (lambda (p)
 		 (cond
 		   ((pair? p) (write-string "yume.cons(" output)
@@ -25,10 +36,10 @@
 				(write p)
 				(write-string ")" output))
 		   ((char? p) (write-string "new yume._char(" output)
-			      (char->integer p)
+			      (write (char->integer p) output)
 			      (write-string ")" output))
 		   ((string? p) (write-string "new yume._string(\"" output)
-				(write-string p output)
+				(write-string (escape p) output)
 				(write-string "\")" output))
 		   ((vector? p) (raise "TODO"))
 		   (else (raise (list "internal-compile-error" "unknown quote data" p))))))
@@ -37,31 +48,27 @@
 	       `((yume:label
 		   ,(lambda (p)
 		      (let ((r (compile (cadr p))))
-			(pretty-print
-			  (map (lambda (e)
-				 (if (pair? e)
-				   (map (lambda (e)
-					  (if (pair? e)
-					    (map (lambda (e)
-						   (if (pair? e)
-						     (map (lambda (e)
-							    (if (pair? e)
-							      #\#
-							      e))
-							  e)
-						     e))
-						 e)
-					    e))
-					e)
-				   e))
-			       (cadr p))
-			  output #:per-line-prefix "//")
+			(pretty-print (caddr p)
+			  output #:per-line-prefix "// ")
 			r)))
 
 		 (yume:quote
 		   ,(lambda (p)
+		      (let ((name (cadr p)))
+			(write-string "var Q_" output)
+			(write-string name output)
+			(write-string " = " output)
+			(compile-quote (caddr p))
+			(write-string ";" output)
+			(newline output)
+			(lambda ()
+			  (write-string "Q_" output)
+			  (write-string name output)))))
+
+		 (yume:null-list
+		   ,(lambda (p)
 		      (lambda ()
-			(compile-quote (cadr p)))))
+			(write-string "yume._null_list" output))))
 
 		 (yume:cons
 		   ,(lambda (p)
@@ -118,23 +125,12 @@
 			    (true (compile (caddr p)))
 			    (false (compile (cadddr p))))
 			(lambda ()
-			  (write-string "(function () {" output)
-			  (newline output)
-			  (write-string "if (yume.test(" output)
+			  (write-string "yume.test(" output)
 			  (test)
-			  (write-string ")) {" output)
-			  (newline output)
-			  (write-string "return " output)
+			  (write-string ") ? " output)
 			  (true)
-			  (write-string ";" output)
-			  (newline output)
-			  (write-string "} else {" output)
-			  (newline output)
-			  (write-string "return " output)
-			  (false)
-			  (write-string ";" output)
-			  (newline output)
-			  (write-string "}})()" output)))))
+			  (write-string " : " output)
+			  (false)))))
 
 		 (yume:global-add
 		   ,(lambda (p)
@@ -274,10 +270,10 @@
 					  (write p)
 					  (write-string ")" output))
 			     ((char? p) (write-string "new yume._char(" output)
-					(char->integer p)
+					(write (char->integer p) output)
 					(write-string ")" output))
 			     ((string? p) (write-string "new yume._string(\"" output)
-					  (write-string p output)
+					  (write-string (escape p) output)
 					  (write-string "\")" output))
 			     ((vector? p) (raise "TODO"))
 			     (else (raise (list "internal-compile-error" "unknown data" p))))))))))

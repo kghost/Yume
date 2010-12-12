@@ -7,14 +7,6 @@ jQuery(window).load(function() {
 		}
 	};
 
-	yume.load = function(cps, url) {
-		jQuery.get("gen/" + url, function(data) {
-			var module = eval(data);
-			run(module(cps, yume._null_list));
-		});
-		return undefined; // interrupt schme engine
-	};
-
 	var input = function(s) {
 		this.closed = false;
 		this.index = 0;
@@ -29,7 +21,7 @@ jQuery(window).load(function() {
 			if (this.index >= this.s.length) {
 				return yume._eof;
 			} else {
-				return new yume._char(s.charCodeAt(index++));
+				return new yume._char(this.s.charCodeAt(this.index++));
 			}
 		},
 		peek: function() {
@@ -39,7 +31,7 @@ jQuery(window).load(function() {
 			if (this.index >= this.s.length) {
 				return yume._eof;
 			} else {
-				return new yume._char(s.charCodeAt(index));
+				return new yume._char(this.s.charCodeAt(this.index));
 			}
 		},
 		ready: function() {
@@ -62,11 +54,11 @@ jQuery(window).load(function() {
 			if (this.closed) {
 				throw "runtime-error: port closed";
 			}
-			if (buffer.length < 4095) {
-				buffer += String.fromCharCode(c);
+			if (this.buffer.length < 4095) {
+				this.buffer += String.fromCharCode(c);
 			} else {
-				this.flush(buffer);
-				buffer = String.fromCharCode(c);
+				this.flush(this.buffer);
+				this.buffer = String.fromCharCode(c);
 			}
 			return undefined;
 		},
@@ -74,11 +66,11 @@ jQuery(window).load(function() {
 			if (this.closed) {
 				throw "runtime-error: port closed";
 			}
-			if (buffer.length + s.length < 4096) {
-				buffer += s;
+			if (this.buffer.length + s.length < 4096) {
+				this.buffer += s;
 			} else {
-				this.flush(buffer);
-				buffer = s;
+				this.flush(this.buffer);
+				this.buffer = s;
 			}
 			return undefined;
 		},
@@ -99,26 +91,47 @@ jQuery(window).load(function() {
 		return current_output;
 	};
 
+	yume.load = function(cps, url) {
+		jQuery.get("gen/" + url + ".js", function(data) {
+			var module = eval(data);
+			run(module(cps, yume._null_list));
+		});
+		return undefined; // interrupt schme engine
+	};
+
+	yume.open_input_file = function(cps, url) {
+		jQuery.get("files/" + url + ".js", function(data) {
+			run({
+				cps: cps,
+				result: new yume._input(new input(data))
+			});
+		});
+		return undefined; // interrupt schme engine
+	};
+
 	var application = test();
 	var running = false;
 
-	jQuery("#yume-run").click(function() {
-		$(this).attr("disabled", true);
+	var button_run = jQuery("#yume-run");
+	button_run.click(function() {
+		button_run.attr("disabled", true);
 		if (running) {
 			alert("Yume running !!!");
 		} else {
-			current_input = new input(jQuery("#yume-input").val());
+			current_input = new yume._input(new input(jQuery("#yume-input").val()));
 			var o = jQuery("#yume-output");
 			o.val("");
-			current_output = new output(function(s) {
+			var buffered_output = new output(function(s) {
 				o.val(o.val() + s);
 			});
+			current_output = new yume._output(buffered_output);
 			run(application(new yume._continue(function(cps, scope, result) {
 				current_input = undefined;
-				current_output.flush(current_output.buffer);
 				current_output = undefined;
+				buffered_output.flush(buffered_output.buffer);
+				buffered_output = undefined;
 				running = false;
-				$(this).attr("disabled", false);
+				button_run.removeAttr("disabled");
 				return undefined;
 			},
 			null), yume._null_list));

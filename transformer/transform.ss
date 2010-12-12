@@ -9,6 +9,26 @@
 	     (inline (cadr result))
 	     (non-inline (cadr result)))))
 
+       (debug-filter
+	 (lambda (p)
+	   (dotted-map (lambda (e)
+		  (if (pair? e)
+		    (dotted-map (lambda (e)
+			   (if (pair? e)
+			     (dotted-map (lambda (e)
+				    (if (pair? e)
+				      (dotted-map (lambda (e)
+					     (if (pair? e)
+					       '...
+					       e))
+					   e)
+				      e))
+				  e)
+			     e))
+			 e)
+		    e))
+		p)))
+
        (transform-begin
 	 (lambda (name index env expressions)
 	   (let ((expr-name (string-append name (number->string index) "_e")))
@@ -40,13 +60,13 @@
 					  (,result cps scope))))
 				  cps scope)
 				scope))
-			    ,(string-append name (number->string index)))))))
+			    ,(debug-filter (car expressions)))))))
 	       (raise (list "transform-error" "begin is not list" expressions))))))
 
        (transform-quote
 	 (lambda (name env expression)
 	   (if (and (pair? expression) (null-list? (cdr expression)))
-	     `(#t (yume:quote ,(car expression)))
+	     `(#t (yume:quote ,name ,(car expression)))
 	     (raise (list "transform-error" "quote" expression)))))
 
        (transform-define
@@ -70,7 +90,7 @@
 				    (yume:continue-call cps (yume:global-add ,variable result)))
 				  cps #f)
 				scope))))
-		      ,name))
+		      ,(debug-filter value)))
 	       (raise (list "transform-error" "define" define))))))
 
        (transform-instant
@@ -90,7 +110,7 @@
 				,name
 				(cps scope)
 				(yume:continue-call cps ,result))
-			      ,name))
+			      ,(debug-filter expressions)))
 			 (lambda (result) result))
 		      scope ,(dotted-length args) ,(dotted-list? args)))
 	       (raise (list "transform-error" "lambda args error" args))))))
@@ -118,7 +138,7 @@
 				    (yume:continue-call cps (yume:cons result ,result)))
 				  cps scope)
 				scope))
-			    ,(string-append name (number->string index)))))))
+			    ,(debug-filter (car params)))))))
 	       (lambda (result)
 		 `(#f (yume:label
 			(yume:lambda-cps
@@ -149,9 +169,9 @@
 					scope))))
 			      cps scope)
 			    scope))
-			,(string-append name (number->string index))))))
+			,(debug-filter (cdr params))))))
 	     (if (null-list? params)
-	       '(#t (yume:quote ()))
+	       '(#t (yume:null-list))
 	       (raise "transform-error" "call params is not list")))))
 
        (transform-call
@@ -203,13 +223,19 @@
 					scope))
 				    cps scope)))
 			    scope))))
-		  ,name))))
+		  ,(debug-filter params)))))
 
        (dotted-length
 	 (lambda (lis)
 	   (if (pair? lis)
 	     (+ 1 (dotted-length (cdr lis)))
 	     0)))
+
+       (dotted-map
+	 (lambda (proc lis)
+	   (if (pair? lis)
+	     (cons (proc (car lis)) (dotted-map proc (cdr lis)))
+	     (proc lis))))
 
        (dotted-every
 	 (lambda (f lis)
@@ -285,7 +311,8 @@
 				      (cps scope result)
 				      (yume:continue-call cps ,(r 'result)))
 				    cps scope)
-				  scope)))))))
+				  scope))))
+			,(debug-filter value))))
 	       (raise (list "transform-error" "syntax error: set!" args))))))
 
        (transform-if
@@ -295,9 +322,25 @@
 	       (do-transform
 		 (transform (string-append name "_test") env test)
 		 (lambda (result)
-		   (if result
-		     (transform (string-append name "_true") env true)
-		     (transform (string-append name "_false") env false)))
+		   `(#f (yume:label
+			  (yume:lambda-cps
+			    ,name
+			    (cps scope)
+			    (yume:if
+			      ,result
+			      ,(do-transform
+				 (transform (string-append name "_true") env true)
+				 (lambda (result)
+				   `(yume:continue-call cps ,result))
+				 (lambda (result)
+				   `(,result cps scope)))
+			      ,(do-transform
+				 (transform (string-append name "_false") env false)
+				 (lambda (result)
+				   `(yume:continue-call cps ,result))
+				 (lambda (result)
+				   `(,result cps scope)))))
+			  ,(debug-filter test))))
 		 (lambda (result)
 		   `(#f (yume:label
 			  (yume:lambda-cps
@@ -323,7 +366,7 @@
 						`(,result cps scope)))))
 				cps scope)
 			      scope))
-			  ,name))))
+			  ,(debug-filter test)))))
 	       (raise (list "transform-error" "syntax error: if" args))))))
 
        (transform

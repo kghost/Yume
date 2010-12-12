@@ -209,6 +209,16 @@
 ;;; The SRFI discussion record contains more discussion on this topic.
 
 
+(use-modules (features check-arg))
+(use-modules (features optional))
+
+; from srfi-8, remove it when find way to import macros
+(define-syntax receive
+  (syntax-rules ()
+		((receive formals expression body ...)
+		 (call-with-values (lambda () expression)
+				   (lambda formals body ...)))))
+
 ;;; Constructors
 ;;;;;;;;;;;;;;;;
 
@@ -1257,6 +1267,12 @@
 (define (assoc x lis . maybe-=)
   (let ((= (:optional maybe-= equal?)))
     (find (lambda (entry) (= x (car entry))) lis)))
+
+(define (assq x lis)
+  (assoc x lis eq?))
+
+(define (assv x lis)
+  (assoc x lis eqv?))
 
 (define (alist-cons key datum alist) (cons (cons key datum) alist))
 
