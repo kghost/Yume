@@ -145,15 +145,18 @@
 
 	     (expand-rules-checked
 	       (lambda (rules p)
-		 (letrec ((try-expand-term
-			    (lambda (p)
-			      (if (pair? p)
-				(let ((rule (assq (car p) rules)))
-				  (if rule
-				    (expand-rules-checked rules (expand-term (cadr rule) p))
-				    (map-all try-expand-term p)))
-				p))))
-		   (try-expand-term p))))
+		 (let try-expand-term ((p p) (qq-depth 0))
+		   (if (pair? p)
+		     (let ((rule (and (zero? qq-depth) (assq (car p) rules))))
+		       (if rule
+			 (expand-rules-checked rules (expand-term (cadr rule) p))
+			 (map-all (lambda (e)
+				    (cond ((and (eq? 'quote (car p)) (zero? qq-depth)) (try-expand-term e -1))
+					  ((and (eq? 'quasiquote (car p)) (>= qq-depth 0)) (try-expand-term e (+ 1 qq-depth)))
+					  ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (try-expand-term e (- 1 qq-depth)))
+					  (else (try-expand-term e qq-depth))))
+				  p)))
+		     p))))
 
 	     (expand
 	       (lambda (rules p)

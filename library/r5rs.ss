@@ -39,6 +39,9 @@
 		  (write-string (type obj) o)
 		  (write-string ">" o))))))
 
+(define (zero? z)
+  (= 0 z))
+
 (define (null? obj)
   (eq? obj '()))
 

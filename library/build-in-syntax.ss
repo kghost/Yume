@@ -4,8 +4,7 @@
   (syntax-rules
     ()
     ((define (variable . formals) . body)
-     ($define variable
-       (lambda formals . body)))
+     ($define variable (lambda formals . body)))
     ((define variable value)
      ($define variable value))))
 
@@ -22,24 +21,6 @@
      (and test true))
     ((if test true false)
      ($if test true false))))
-
-(define-syntax quote
-  (syntax-rules
-    ()
-    ((quote x)
-     ($quote x))))
-
-(define-syntax unquote
-  (syntax-rules
-    ()))
-
-(define-syntax unquote-splicing
-  (syntax-rules
-    ()))
-
-(define-syntax quasiquote
-  (syntax-rules
-    ()))
 
 (define-syntax set!
   (syntax-rules

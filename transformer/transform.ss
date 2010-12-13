@@ -99,21 +99,23 @@
 
        (transform-lambda
 	 (lambda (name env params)
-	   (let ((args (car params)) (expressions (cdr params)))
-	     (if (dotted-every symbol? args)
-	       `(#t (yume:procedure-new
-		      ,(do-transform
-			 (transform-begin (string-append name "_f_s") 0 (cons args env) expressions)
-			 (lambda (result)
-			   `(yume:label
-			      (yume:lambda-cps
-				,name
-				(cps scope)
-				(yume:continue-call cps ,result))
-			      ,(debug-filter expressions)))
-			 (lambda (result) result))
-		      scope ,(dotted-length args) ,(dotted-list? args)))
-	       (raise (list "transform-error" "lambda args error" args))))))
+	   (let ((args (car params)) (expressions (cadr params)) (null (cddr params)))
+	     (if (null? null)
+	       (if (dotted-every symbol? args)
+		 `(#t (yume:procedure-new
+			,(do-transform
+			   (transform (string-append name "_f") (cons args env) expressions)
+			   (lambda (result)
+			     `(yume:label
+				(yume:lambda-cps
+				  ,name
+				  (cps scope)
+				  (yume:continue-call cps ,result))
+				,(debug-filter expressions)))
+			   (lambda (result) result))
+			scope ,(dotted-length args) ,(dotted-list? args)))
+		 (raise (list "transform-error" "lambda args error" args)))
+	       (raise (list "internal-transform-error" "lambda contain multiple statements"))))))
 
        (transform-params
 	 (lambda (name index env params)
@@ -373,7 +375,7 @@
 	 (lambda (name env expression)
 	   (cond ((pair? expression)
 		  (let ((op (car expression))(args (cdr expression)))
-		    (cond ((eq? op '$quote) (transform-quote name env args))
+		    (cond ((eq? op 'quote) (transform-quote name env args))
 			  ((eq? op '$define) (transform-define name env args))
 			  ((eq? op '$lambda) (transform-lambda name env args))
 			  ((eq? op '$begin) (transform-begin name 0 env args))
