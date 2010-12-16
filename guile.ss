@@ -1,6 +1,7 @@
 (use-modules (srfi srfi-1))
 (use-modules (ice-9 pretty-print))
 
+(load "src/misc.ss")
 (load "src/reader.ss")
 (load "src/expand.ss")
 (load "src/transform.ss")
@@ -13,7 +14,7 @@
   ((if (isatty? output)
      pretty-print
      write)
-   (transform (expand (cons 'begin (append build-in-syntax build-in-macros program))))
+   (expand (cons 'begin (append build-in-syntax build-in-macros program)))
    output))
 (newline)
 

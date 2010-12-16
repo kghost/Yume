@@ -1,7 +1,5 @@
 (use-modules (srfi srfi-1))
 
-(load "misc.ss")
-
 (define interpret
   (lambda (input)
     (letrec
@@ -14,6 +12,7 @@
        (special-initial?
 	 (lambda (c)
 	   (or
+	     (eqv? c #\|) ; r5rs reserved. use it to build lambda macro alpha renaming
 	     (eqv? c #\!)
 	     (eqv? c #\$)
 	     (eqv? c #\%)

@@ -1,7 +1,5 @@
 (use-modules (srfi srfi-1))
 
-(load "misc.ss")
-
 (define expand
   (lambda (p)
     (letrec ((rules (lambda (p) (partition (lambda (e) (and (pair? e) (eq? (car e) 'define-syntax))) p)))
@@ -26,6 +24,9 @@
 					  (raise (list "expand-error" "syntax-error" macro))))))))
 
 	     (match-syntax-rules
+	       ; -> (syntax-expr renames . bindings)
+	       ; bindings => ((variable . binding) ...)
+	       ; binding => (#t . (binding ...)) if is recursive or (#f . bind)
 	       (lambda (auxiliary-keywords rule-set p)
 		 (letrec ((match-rec-empty-binding
 			    (lambda (pre rule)
@@ -35,28 +36,38 @@
 
 			  (match-rec
 			    (lambda (pre rule p)
-			      ; pre => ((variable . binding) ...)
+			      ; pre => (renames . bindings)
 			      (cond ((pair? p) (let ((next (match rule (car p))))
-						 (and next (match-rec (fold-right (lambda (p n tail) (cons (cons (car p) (cons n (cdr p))) tail)) '() pre (map cadr next)) rule (cdr p)))))
-				    ((eq? '() p) (map (lambda (e) (list (car e) (cons #t (cdr e)))) pre))
+						 (and next (match-rec
+							     (cons
+							       (append (car next) (car pre))
+							       (fold-right
+								 (lambda (p n tail) (cons (cons (car p) (cons n (cdr p))) tail))
+								 '() (cdr pre) (map cadr (cdr next))))
+							     rule (cdr p)))))
+				    ((null? p) (cons (car pre) (map (lambda (e) (list (car e) (cons #t (cdr e)))) (cdr pre))))
 				    (else #f))))
 
-			  (match ; -> ((variable . binding) ...) or #f if not match, binding => (#t . bind) if is recursive or (#f . bind)
+			  (match ; -> (renames . bindings) or #f if not match
 			    (lambda (rule p)
 			      (cond ((and (symbol? rule) (not (find (eq-this? rule) auxiliary-keywords)))
-				     (list (list rule (cons #f p))))
+				     (cons
+				       (if (eqv? (string-ref (symbol->string rule) 0) #\|)
+					 (if (symbol? p)
+					   (list (list p (gensym (string-append (symbol->string p) "|"))))
+					   (raise "expand-error" "rename macro " rule " doesn't match a symbol " p))
+					 '())
+				       (list (list rule (cons #f p)))))
 				    ((pair? rule) (if (equal? (cdr rule) '(...))
 						    ; XXX: seems '... can only appear at the end of list, or need a fsm processer :(
-						    (match-rec (match-rec-empty-binding '() (car rule)) (car rule) p)
-						    (if (pair? p)
-						      (let ((head (match (car rule) (car p))) (tail (match (cdr rule) (cdr p))))
-							(if (and head tail)
-							  (append head tail)
-							  #f))
-						      #f)))
-				    (else (if (equal? rule p) '() #f))))))
+						    (match-rec (cons '() (match-rec-empty-binding '() (car rule))) (car rule) p)
+						    (and (pair? p)
+							 (let ((head (match (car rule) (car p))) (tail (match (cdr rule) (cdr p))))
+							   (and (and head tail)
+								(cons (append (car head) (car tail)) (append (cdr head) (cdr tail))))))))
+				    (else (and (equal? rule p) (cons '() '())))))))
 		   (if (null-list? rule-set)
-		     (raise (list "expand-error" p "don't match"))
+		     (raise (list "expand-error" "syntax error" p))
 		     (let ((result (match (caar rule-set) p)))
 		       (if result
 			 (cons (cadar rule-set) result)
@@ -83,10 +94,33 @@
 			   tail))
 		       (cons '() '()) binding)))
 
+	     (rename
+	       (lambda (renames p)
+		 (let rename-depth ((p p) (qq-depth 0))
+		   (if (pair? p)
+		     (dotted-map (cond ((and (eq? 'quote (car p)) (zero? qq-depth)) (lambda (e) (rename-depth e -1)))
+				       ((and (eq? 'quasiquote (car p)) (>= qq-depth 0)) (lambda (e) (rename-depth e (+ 1 qq-depth))))
+				       ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (lambda (e) (rename-depth e (- 1 qq-depth))))
+				       (else (lambda (e) (rename-depth e qq-depth))))
+				 p)
+		     (if (and (zero? qq-depth) (symbol? p))
+		       (let ((r (assq p renames)))
+			 (if r (cadr r) p))
+		       p)))))
+
 	     (expand-term
 	       (lambda (syntax-rules p)
 		 (let* ((result (match-syntax-rules (car syntax-rules) (cdr syntax-rules) p))
-			(expr (car result)) (binding (cdr result)))
+			(expr (car result)) (renames (cadr result))
+			(binding 
+			  (map
+			    (lambda (e)
+			      (list (car e)
+				    (let r ((e (cadr e)))
+				      (if (car e)
+					(cons #t (map r (cdr e)))
+					(cons #f (rename renames (cdr e)))))))
+			    (cddr result))))
 		   (letrec
 		     ((apply-rule-rec
 			(lambda (result rule binding)
@@ -98,7 +132,7 @@
 					  result))))
 
 		      (apply-rule
-			(lambda (rule binding) ; -> result
+			(lambda (rule binding)
 			  (cond ((pair? rule) (dotted-pair-fold-right
 						(lambda (lis) (apply-rule lis binding))
 						(lambda (lis next)
@@ -116,8 +150,7 @@
 						    rule)))
 				(else rule))))
 		      )
-		     (apply-rule expr binding))
-		   )))
+		     (apply-rule expr binding)))))
 
 	     (expand-rules-checked
 	       (lambda (rules p)
@@ -126,11 +159,10 @@
 		     (let ((rule (and (zero? qq-depth) (assq (car p) rules))))
 		       (if rule
 			 (expand-rules-checked rules (expand-term (cadr rule) p))
-			 (dotted-map (lambda (e)
-				       (cond ((and (eq? 'quote (car p)) (zero? qq-depth)) (try-expand-term e -1))
-					     ((and (eq? 'quasiquote (car p)) (>= qq-depth 0)) (try-expand-term e (+ 1 qq-depth)))
-					     ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (try-expand-term e (- 1 qq-depth)))
-					     (else (try-expand-term e qq-depth))))
+			 (dotted-map (cond ((and (eq? 'quote (car p)) (zero? qq-depth)) (lambda (e) (try-expand-term e -1)))
+					   ((and (eq? 'quasiquote (car p)) (>= qq-depth 0)) (lambda (e) (try-expand-term e (+ 1 qq-depth))))
+					   ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (lambda (e) (try-expand-term e (- 1 qq-depth))))
+					   (else (lambda (e) (try-expand-term e qq-depth))))
 				     p)))
 		     p))))
 

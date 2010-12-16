@@ -1,7 +1,5 @@
 (use-modules (srfi srfi-1))
 
-(load "misc.ss")
-
 (define transform
   (lambda (p)
     (letrec
