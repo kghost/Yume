@@ -1,5 +1,7 @@
 (use-modules (srfi srfi-1))
 
+(load "misc.ss")
+
 (define interpret
   (lambda (input)
     (letrec

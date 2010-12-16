@@ -1,5 +1,7 @@
 (use-modules (srfi srfi-1))
 
+(load "misc.ss")
+
 (define transform
   (lambda (p)
     (letrec
@@ -226,36 +228,6 @@
 				    cps scope)))
 			    scope))))
 		  ,(debug-filter params)))))
-
-       (dotted-length
-	 (lambda (lis)
-	   (if (pair? lis)
-	     (+ 1 (dotted-length (cdr lis)))
-	     0)))
-
-       (dotted-map
-	 (lambda (proc lis)
-	   (if (pair? lis)
-	     (cons (proc (car lis)) (dotted-map proc (cdr lis)))
-	     (proc lis))))
-
-       (dotted-every
-	 (lambda (f lis)
-	   (if (pair? lis)
-	     (and (f (car lis)) (dotted-every f (cdr lis)))
-	     (or (eq? '() lis) (f lis)))))
-
-       (dotted-fold
-	 (lambda (kons kdot knil lis)
-	   (if (pair? lis)
-	     (dotted-fold kons kdot (kons (car lis) knil) (cdr lis))
-	     (kdot lis knil))))
-
-       (dotted-pair-fold
-	 (lambda (kons kdot knil lis)
-	   (if (pair? lis)
-	     (dotted-pair-fold kons kdot (kons lis knil) (cdr lis))
-	     (kdot lis knil))))
 
        (transform-variable
 	 (lambda (name env variable)

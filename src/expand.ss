@@ -1,18 +1,10 @@
 (use-modules (srfi srfi-1))
 
+(load "misc.ss")
+
 (define expand
   (lambda (p)
     (letrec ((rules (lambda (p) (partition (lambda (e) (and (pair? e) (eq? (car e) 'define-syntax))) p)))
-
-	     (eq-this? (lambda (this) (lambda (that) (eq? this that))))
-
-	     (dotted-every
-	       (lambda (pred list)
-		 (let lp ((list list))
-		   (if (pair? list)
-		     (and (pred (car list))
-			  (lp (cdr list)))
-		     (pred list)))))
 
 	     (prepare-rules
 	       (lambda (macro)
@@ -70,23 +62,7 @@
 			 (cons (cadar rule-set) result)
 			 (match-syntax-rules auxiliary-keywords (cdr rule-set) p)))))))
 
-	     (pair-fold-right-all
-	       (lambda (kons-tail kons clist)
-		 (cond ((pair? clist) (kons clist (pair-fold-right-all kons-tail kons (cdr clist))))
-		       (else (kons-tail clist)))))
-
-	     (fold-right-all
-	       (lambda (kons-tail kons clist)
-		 (cond ((pair? clist) (kons (car clist) (fold-right-all kons-tail kons (cdr clist))))
-		       (else (kons-tail clist)))))
-
-	     (map-all
-	       (lambda (proc clist)
-		 (fold-right-all (lambda (a) (proc a))
-				 (lambda (a d) (cons (proc a) d))
-				 clist)))
-
-	     (binding-need ;
+	     (binding-need
 	       (lambda (pre rule)
 		 (cond ((pair? rule) (binding-need (binding-need pre (cdr rule)) (car rule)))
 		       ((symbol? rule) (cons rule pre))
@@ -123,7 +99,7 @@
 
 		      (apply-rule
 			(lambda (rule binding) ; -> result
-			  (cond ((pair? rule) (pair-fold-right-all
+			  (cond ((pair? rule) (dotted-pair-fold-right
 						(lambda (lis) (apply-rule lis binding))
 						(lambda (lis next)
 						  (cond ((and (eq? (car lis) '...) (pair? (cdr lis)) (eq? (cadr lis) '...)) '...)
@@ -150,12 +126,12 @@
 		     (let ((rule (and (zero? qq-depth) (assq (car p) rules))))
 		       (if rule
 			 (expand-rules-checked rules (expand-term (cadr rule) p))
-			 (map-all (lambda (e)
-				    (cond ((and (eq? 'quote (car p)) (zero? qq-depth)) (try-expand-term e -1))
-					  ((and (eq? 'quasiquote (car p)) (>= qq-depth 0)) (try-expand-term e (+ 1 qq-depth)))
-					  ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (try-expand-term e (- 1 qq-depth)))
-					  (else (try-expand-term e qq-depth))))
-				  p)))
+			 (dotted-map (lambda (e)
+				       (cond ((and (eq? 'quote (car p)) (zero? qq-depth)) (try-expand-term e -1))
+					     ((and (eq? 'quasiquote (car p)) (>= qq-depth 0)) (try-expand-term e (+ 1 qq-depth)))
+					     ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (try-expand-term e (- 1 qq-depth)))
+					     (else (try-expand-term e qq-depth))))
+				     p)))
 		     p))))
 
 	     (expand
