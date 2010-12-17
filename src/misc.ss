@@ -37,5 +37,5 @@
 (define (eq-this? this) (lambda (that) (eq? this that)))
 
 (define (debug x)
-  (write x)
+  (pretty-print x)
   x)

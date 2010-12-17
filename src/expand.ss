@@ -6,22 +6,22 @@
 
 	     (prepare-rules
 	       (lambda (macro)
-		 (let ((check-syntax-rule
-			 (lambda (auxiliary-keywords)
-			   (lambda (rule)
-			     (let ((matching (car rule)) (expander (cadr rule)) (null (cddr rule)))
-			       (and (eq? null '())
-				    (let check-dddot-at-head ((matching matching))
-				      (or (not (pair? matching))
-					  (and (not (eq? (car matching) '...))
-					       (dotted-every check-dddot-at-head matching))))))))))
-
-		   (list (cadr macro) (let ((syntax-rules (caddr macro)) (null (cdddr macro)))
-					(if (and (eq? null '()) (pair? syntax-rules) (eq? (car syntax-rules) 'syntax-rules)
-						 (pair? (cdr syntax-rules)) (proper-list? (cadr syntax-rules)) (every symbol? (cadr syntax-rules))
-						 (proper-list? (cddr syntax-rules)) (every (check-syntax-rule (cadr syntax-rules)) (cddr syntax-rules)))
-					  (cdr syntax-rules)
-					  (raise (list "expand-error" "syntax-error" macro))))))))
+		 (match macro
+			(('define-syntax name
+			  ('syntax-rules (? (lambda (e) (and (proper-list? e) (every symbol? e))) auxiliary-keywords)
+			   (? (lambda (rule)
+				(match rule
+				       ((matching (? (lambda (p)
+						       (let check-dddot-at-head ((p p))
+							 (or (not (pair? p))
+							     (and (not (eq? (car p) '...))
+								  (dotted-every check-dddot-at-head (car p))
+								  (dotted-every check-dddot-at-head (cdr p))))))
+						     expr)) #t)
+				       (_ (raise (list "expand-error" "syntax-error" "... not at end" macro)))))
+			      rules) ___))
+			 (list name (cons auxiliary-keywords rules)))
+			(_ (raise (list "expand-error" "syntax-error" macro))))))
 
 	     (match-syntax-rules
 	       ; -> (syntax-expr renames . bindings)
@@ -81,18 +81,23 @@
 
 	     (binding-pop-frame ; -> (poped-binding . remaining-binding) or (#f . binding) if at lease one binding is at end
 	       (lambda (binding need)
-		 (fold (lambda (e tail) ; it isn't ordered, so use fold instead of fold-right
-			 (if (and (car tail) (find (eq-this? (car e)) need))
-			   (let ((bind (cadr e)))
-			     (if (car bind)
-			       (if (null-list? (cdr bind)) ; it is a recursive bind
-				 (cons #f binding) ; but at end return #f
-				 (cons (cons (list (car e) (cadr bind)) (car tail))
-				       (cons (list (car e) (cons #t (cddr bind))) (cdr tail))))
-			       (cons (cons e (car tail))
-				     (cons e (cdr tail)))))
-			   tail))
-		       (cons '() '()) binding)))
+		 (call/cc
+		   (lambda (return)
+		     (let ((r (fold (lambda (e tail) ; it isn't ordered, so use fold instead of fold-right
+				      (if (find (eq-this? (car e)) need)
+					(let ((bind (cadr e)))
+					  (if (car bind)
+					    (if (null-list? (cdr bind)) ; it is a recursive bind
+					      (return (cons #f binding)) ; but at end return #f
+					      (cons #t (cons (cons (list (car e) (cadr bind)) (cadr tail))
+							     (cons (list (car e) (cons #t (cddr bind))) (cddr tail)))))
+					    (cons (car tail) (cons (cons e (cadr tail))
+								   (cons e (cddr tail))))))
+					tail))
+				    '(#f () . ()) binding)))
+		       (if (car r)
+			 (cdr r)
+			 (cons #f binding)))))))
 
 	     (rename
 	       (lambda (renames p)

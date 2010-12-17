@@ -1,6 +1,8 @@
 (use-modules (srfi srfi-1))
+(use-syntax (ice-9 syncase))
 (use-modules (ice-9 pretty-print))
 
+(load "match.scm")
 (load "src/misc.ss")
 (load "src/reader.ss")
 (load "src/expand.ss")
