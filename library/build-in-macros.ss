@@ -84,7 +84,7 @@
 (define-syntax letrec ; from http://community.schemewiki.org/?scheme-faq-macros
   (syntax-rules ()
 		((_ ((var init) ...) . body)
-		 (let ((var 'undefined) ...)
+		 (let ((var (begin)) ...)
 		   (let ((var (let ((temp init)) (lambda () (set! var temp))))
 			 ...
 			 (bod (lambda () . body)))
@@ -100,7 +100,6 @@
 		      (lambda (var ...)
 			(if test
 			  (begin
-			    'undefined
 			    expr ...)
 			  (begin
 			    command

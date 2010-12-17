@@ -3,11 +3,12 @@
 (define expand
   (lambda (p)
     (letrec ((rules (lambda (p) (partition (lambda (e) (and (pair? e) (eq? (car e) 'define-syntax))) p)))
+	     (assign-name (lambda (origin) (gensym (string-append (symbol->string origin) "|"))))
 
 	     (prepare-rules
 	       (lambda (macro)
 		 (match macro
-			(('define-syntax name
+			((name
 			  ('syntax-rules (? (lambda (e) (and (proper-list? e) (every symbol? e))) auxiliary-keywords)
 			   (? (lambda (rule)
 				(match rule
@@ -54,7 +55,7 @@
 				     (cons
 				       (if (eqv? (string-ref (symbol->string rule) 0) #\|)
 					 (if (symbol? p)
-					   (list (list p (gensym (string-append (symbol->string p) "|"))))
+					   (list (list p (assign-name p)))
 					   (raise "expand-error" "rename macro " rule " doesn't match a symbol " p))
 					 '())
 				       (list (list rule (cons #f p)))))
@@ -162,18 +163,33 @@
 		 (let try-expand-term ((p p) (qq-depth 0))
 		   (if (pair? p)
 		     (let ((rule (and (zero? qq-depth) (assq (car p) rules))))
-		       (if rule
-			 (expand-rules-checked rules (expand-term (cadr rule) p))
-			 (dotted-map (cond ((and (eq? 'quote (car p)) (zero? qq-depth)) (lambda (e) (try-expand-term e -1)))
-					   ((and (eq? 'quasiquote (car p)) (>= qq-depth 0)) (lambda (e) (try-expand-term e (+ 1 qq-depth))))
-					   ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (lambda (e) (try-expand-term e (- 1 qq-depth))))
-					   (else (lambda (e) (try-expand-term e qq-depth))))
-				     p)))
+		       (cond (rule (expand-rules-checked rules (expand-term (cadr rule) p)))
+			     ((and (eq? (car p) 'let-syntax) (zero? qq-depth))
+			      (match (cdr p)
+				     (((((? symbol? name) local-rules) ...) . body)
+				      (let*  ((new (map assign-name name)) (renames (zip name new)))
+					(expand-rules-checked
+					  (fold (lambda (rule tail) (cons (prepare-rules rule) tail)) rules (zip new local-rules))
+					  (rename renames (cons 'begin body)))))
+				     (_ (raise "expand-error" "syntax-error" p))))
+			     ((and (eq? (car p) 'letrec-syntax) (zero? qq-depth))
+			      (match (cdr p)
+				     (((((? symbol? name) local-rules) ...) . body)
+				      (let*  ((new (map assign-name name)) (renames (zip name new)))
+					(expand-rules-checked
+					  (fold (lambda (rule tail) (cons (prepare-rules rule) tail)) rules (zip new (rename renames local-rules)))
+					  (rename renames (cons 'begin body)))))
+				     (_ (raise "expand-error" "syntax-error" p))))
+			     (else (dotted-map (cond ((and (eq? 'quote (car p)) (zero? qq-depth)) (lambda (e) (try-expand-term e -1)))
+						     ((and (eq? 'quasiquote (car p)) (>= qq-depth 0)) (lambda (e) (try-expand-term e (+ 1 qq-depth))))
+						     ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (lambda (e) (try-expand-term e (- 1 qq-depth))))
+						     (else (lambda (e) (try-expand-term e qq-depth))))
+					       p))))
 		     p))))
 
 	     (expand
 	       (lambda (rules p)
-		 (expand-rules-checked (map prepare-rules rules) p))))
+		 (expand-rules-checked (map (lambda (r) (prepare-rules (cdr r))) rules) p))))
 
 
       (call-with-values
