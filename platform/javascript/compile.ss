@@ -1,9 +1,9 @@
 (use-modules (srfi srfi-1))
 
-(load "../../interpreter/reader.ss")
-(load "../../expander/expand.ss")
-(load "../../transformer/transform.ss")
-(load "../../compiler/javascript.ss")
+(load "../../src/reader.ss")
+(load "../../src/expand.ss")
+(load "../../src/transform.ss")
+(load "../../src/javascript.ss")
 
 (define build-in-macros (interpret (open-input-file "library/build-in-macros.ss")))
 (define build-in-syntax (interpret (open-input-file "library/build-in-syntax.ss")))
@@ -22,6 +22,6 @@
 		     feature-use-modules
 		     program))))
 	 (and (pair? (cdr (command-line)))
-	   (cadr (command-line))))
+	      (cadr (command-line))))
 (newline)
 

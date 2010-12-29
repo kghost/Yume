@@ -1,5 +1,3 @@
-(use-modules (srfi srfi-1))
-
 (define interpret
   (lambda (input)
     (letrec
@@ -131,6 +129,7 @@
        (parse-sharp
 	 (lambda (c input)
 	   (cond ((eqv? c #\\) (parse-char (read-char input) input))
+		 ((eqv? c #\() (parse-vector (read-char input) '() input))
 		 ((letter? c) (parse-sharp-name c '() input))
 		 (else (raise (list "parse-error" (list #\# c)))))))
 
@@ -150,6 +149,16 @@
 		   (cons (read-char input) (fold cons (cons (car pre) tail) (cdr pre)))
 		   (raise (list "parse-error" "expect ')'" "after" tail "got" char))))
 	       (raise "parse-error" c)))))
+
+       (parse-vector
+	 (lambda (c pre input)
+	   (let* ((datum (parse-datum c input)) (char (car datum)) (result (cdr datum)))
+	     (cond ((char? char) (parse-vector char (cons result pre) input))
+		   ((eq? char 'dot) (raise (list "parse-error '.' inside vector")))
+		   ((eq? char 'e) (cond ((eq? result #\)) (cons (read-char input) (list->vector (reverse pre))))
+					((eof-object? result) (raise (list "parse-error" "unmatched #(")))
+					(else (raise "internal-parse-error"))))
+		   (else (raise "internal-parse-error"))))))
 
        (parse-list
 	 (lambda (c pre input)

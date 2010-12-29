@@ -1,26 +1,23 @@
-(use-modules (srfi srfi-1))
-
 (define expand
-  (lambda (p)
-    (letrec ((rules (lambda (p) (partition (lambda (e) (and (pair? e) (eq? (car e) 'define-syntax))) p)))
-	     (assign-name (lambda (origin) (gensym (string-append (symbol->string origin) "|"))))
+  (lambda (macros p)
+    (letrec ((assign-name (lambda (origin) (gensym (string-append (symbol->string origin) "|"))))
 
 	     (prepare-rules
 	       (lambda (macro)
 		 (match macro
 			((name
-			  ('syntax-rules (? (lambda (e) (and (proper-list? e) (every symbol? e))) auxiliary-keywords)
-			   (? (lambda (rule)
-				(match rule
-				       ((matching (? (lambda (p)
-						       (let check-dddot-at-head ((p p))
-							 (or (not (pair? p))
-							     (and (not (eq? (car p) '...))
-								  (dotted-every check-dddot-at-head (car p))
-								  (dotted-every check-dddot-at-head (cdr p))))))
-						     expr)) #t)
-				       (_ (raise (list "expand-error" "syntax-error" "... not at end" macro)))))
-			      rules) ___))
+			   ('syntax-rules (? (lambda (e) (and (proper-list? e) (every symbol? e))) auxiliary-keywords)
+			    (? (lambda (rule)
+				 (match rule
+					((matching (? (lambda (p)
+							(let check-dddot-at-head ((p p))
+							  (or (not (pair? p))
+							      (and (not (eq? (car p) '...))
+								   (dotted-every check-dddot-at-head (car p))
+								   (dotted-every check-dddot-at-head (cdr p))))))
+						      expr)) #t)
+					(_ (raise (list "expand-error" "syntax-error" "... not at end" macro)))))
+			       rules) ___))
 			 (list name (cons auxiliary-keywords rules)))
 			(_ (raise (list "expand-error" "syntax-error" macro))))))
 
@@ -185,14 +182,7 @@
 						     ((and (eq? 'unquote (car p)) (>= qq-depth 0)) (lambda (e) (try-expand-term e (- 1 qq-depth))))
 						     (else (lambda (e) (try-expand-term e qq-depth))))
 					       p))))
-		     p))))
+		     p)))))
 
-	     (expand
-	       (lambda (rules p)
-		 (expand-rules-checked (map (lambda (r) (prepare-rules (cdr r))) rules) p))))
-
-
-      (call-with-values
-	(lambda () (rules p))
-	expand))))
+      (expand-rules-checked (map (lambda (r) (prepare-rules (cdr r))) macros) p))))
 

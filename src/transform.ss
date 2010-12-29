@@ -1,5 +1,3 @@
-(use-modules (srfi srfi-1))
-
 (define transform
   (lambda (p)
     (letrec
@@ -12,22 +10,22 @@
        (debug-filter
 	 (lambda (p)
 	   (dotted-map (lambda (e)
-		  (if (pair? e)
-		    (dotted-map (lambda (e)
-			   (if (pair? e)
-			     (dotted-map (lambda (e)
-				    (if (pair? e)
-				      (dotted-map (lambda (e)
-					     (if (pair? e)
-					       '...
-					       e))
-					   e)
-				      e))
-				  e)
-			     e))
-			 e)
-		    e))
-		p)))
+			 (if (pair? e)
+			   (dotted-map (lambda (e)
+					 (if (pair? e)
+					   (dotted-map (lambda (e)
+							 (if (pair? e)
+							   (dotted-map (lambda (e)
+									 (if (pair? e)
+									   '...
+									   e))
+								       e)
+							   e))
+						       e)
+					   e))
+				       e)
+			   e))
+		       p)))
 
        (transform-begin
 	 (lambda (name index env expressions)

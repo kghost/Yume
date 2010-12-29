@@ -2,7 +2,6 @@
 (use-modules (srfi srfi-1))
 (use-modules (yume reader))
 (use-modules (yume expand))
-(use-modules (yume expand))
 ;(use-modules (yume transform))
 
 (define build-in-macros (interpret (open-input-file "library/build-in-macros.ss")))

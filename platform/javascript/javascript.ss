@@ -49,7 +49,7 @@
 		   ,(lambda (p)
 		      (let ((r (compile (cadr p))))
 			(pretty-print (caddr p)
-			  output #:per-line-prefix "// ")
+				      output #:per-line-prefix "// ")
 			r)))
 
 		 (yume:quote

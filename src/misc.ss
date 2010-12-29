@@ -1,4 +1,3 @@
-
 (define (dotted-length lis)
   (let lp ((lis lis) (r 0))
     (if (pair? lis)
