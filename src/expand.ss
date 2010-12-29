@@ -29,6 +29,7 @@
 		 (letrec ((match-rec-empty-binding
 			    (lambda (pre rule)
 			      (cond ((pair? rule) (match-rec-empty-binding (match-rec-empty-binding pre (cdr rule)) (car rule)))
+				    ((vector? rule) (match-rec-empty-binding pre (vector->list rule)))
 				    ((and (symbol? rule) (not (find (eq-this? rule) auxiliary-keywords))) (cons (list rule) pre))
 				    (else pre))))
 
@@ -63,6 +64,7 @@
 							 (let ((head (match (car rule) (car p))) (tail (match (cdr rule) (cdr p))))
 							   (and (and head tail)
 								(cons (append (car head) (car tail)) (append (cdr head) (cdr tail))))))))
+				    ((and (vector? rule) (vector? p)) (match (vector->list rule) (vector->list p)))
 				    (else (and (equal? rule p) (cons '() '())))))))
 		   (if (null-list? rule-set)
 		     (raise (list "expand-error" "syntax error" p))
@@ -74,6 +76,7 @@
 	     (binding-need
 	       (lambda (pre rule)
 		 (cond ((pair? rule) (binding-need (binding-need pre (cdr rule)) (car rule)))
+		       ((vector? rule) (binding-need pre (vector->list rule)))
 		       ((symbol? rule) (cons rule pre))
 		       (else pre))))
 
@@ -151,6 +154,7 @@
 						      (raise (list "extend-error" rule "'... depth not match"))
 						      (cdadr found))
 						    rule)))
+				((vector? rule) (list->vector (apply-rule (vector->list rule) binding)))
 				(else rule))))
 		      )
 		     (apply-rule expr binding)))))
