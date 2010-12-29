@@ -65,6 +65,12 @@
 			  (write-string "Q_" output)
 			  (write-string name output)))))
 
+		 ; XXX: undefined ?!
+		 (yume:undefined
+		   ,(lambda (p)
+		      (lambda ()
+			(write-string "undefined" output))))
+
 		 (yume:null-list
 		   ,(lambda (p)
 		      (lambda ()

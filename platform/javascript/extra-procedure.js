@@ -17,3 +17,19 @@ yume.global_add("escape", new yume._procedure(function(cps, scope) {
 },
 yume._null_list, 1, false));
 
+(function() {
+	var sym = 0;
+	yume.global_add("gensym", new yume._procedure(function(cps, scope) {
+		var frame = scope.car();
+		var s = frame.car();
+		if (!yume.is_string(s)) {
+			throw "runtime-error: " + s + "is not string";
+		}
+		return {
+			cps: cps,
+			result: new yume._symbol(s.get_value() + sym++)
+		};
+	},
+	yume._null_list, 1, false));
+})();
+

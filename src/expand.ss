@@ -16,10 +16,10 @@
 								   (dotted-every check-dddot-at-head (car p))
 								   (dotted-every check-dddot-at-head (cdr p))))))
 						      expr)) #t)
-					(_ (raise (list "expand-error" "syntax-error" "... not at end" macro)))))
+					(_ (raise (list "expand-error" "macro-syntax-error" "... not at end" macro)))))
 			       rules) ___))
 			 (list name (cons auxiliary-keywords rules)))
-			(_ (raise (list "expand-error" "syntax-error" macro))))))
+			(_ (raise (list "expand-error" "macro-syntax-error" macro))))))
 
 	     (match-syntax-rules
 	       ; -> (syntax-expr renames . bindings)
@@ -50,13 +50,10 @@
 			  (match ; -> (renames . bindings) or #f if not match
 			    (lambda (rule p)
 			      (cond ((and (symbol? rule) (not (find (eq-this? rule) auxiliary-keywords)))
-				     (cons
-				       (if (eqv? (string-ref (symbol->string rule) 0) #\|)
-					 (if (symbol? p)
-					   (list (list p (assign-name p)))
-					   (raise "expand-error" "rename macro " rule " doesn't match a symbol " p))
-					 '())
-				       (list (list rule (cons #f p)))))
+				     (if (eqv? (string-ref (symbol->string rule) 0) #\|)
+				       (and (symbol? p)
+					    (cons (list (list p (assign-name p))) (list (list rule (cons #f p)))))
+				       (cons '() (list (list rule (cons #f p))))))
 				    ((pair? rule) (if (equal? (cdr rule) '(...))
 						    ; XXX: seems '... can only appear at the end of list, or need a fsm processer :(
 						    (match-rec (cons '() (match-rec-empty-binding '() (car rule))) (car rule) p)
@@ -67,7 +64,7 @@
 				    ((and (vector? rule) (vector? p)) (match (vector->list rule) (vector->list p)))
 				    (else (and (equal? rule p) (cons '() '())))))))
 		   (if (null-list? rule-set)
-		     (raise (list "expand-error" "syntax error" p))
+		     (raise (list "expand-error" "syntax-error" p))
 		     (let ((result (match (caar rule-set) p)))
 		       (if result
 			 (cons (cadar rule-set) result)
@@ -82,7 +79,7 @@
 
 	     (binding-pop-frame ; -> (poped-binding . remaining-binding) or (#f . binding) if at lease one binding is at end
 	       (lambda (binding need)
-		 (call/cc
+		 (call-with-current-continuation
 		   (lambda (return)
 		     (let ((r (fold (lambda (e tail) ; it isn't ordered, so use fold instead of fold-right
 				      (if (find (eq-this? (car e)) need)

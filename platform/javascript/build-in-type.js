@@ -67,6 +67,20 @@ yume.is_char = function(p) {
 };
 
 // ****************** vector *******************
+yume._vector = function() {
+};
+
+yume._vector.prototype = {
+	__type__: "vector",
+	eqv: function(that) {
+		return this === that;
+	}
+};
+
+yume.is_vector = function(p) {
+	return typeof p === "object" && yume._vector.prototype.isPrototypeOf(p);
+};
+
 // ***************** procedure *****************
 yume._procedure = function(fun, scope, n_args, is_vargs) {
 	if (typeof fun !== "function") {

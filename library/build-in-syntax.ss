@@ -10,9 +10,17 @@
 
 (define-syntax lambda
   (syntax-rules
-    () ; binding varialbe begin with | means need to be renamed
+    (=>) ; binding varialbe begin with | means need to be renamed
     ((lambda (|vars ...) . body)
-     ($lambda (|vars ...) . body))))
+     ($lambda (|vars ...) (begin . body)))
+    ((lambda (|var1 . var*) => (vars ...) . body)
+     (lambda var* => (vars ... |var1) . body))
+    ((lambda |var => () . body)
+     ($lambda |var (begin . body)))
+    ((lambda |var => (vars ...) . body)
+     ($lambda (vars ... . |var) (begin . body)))
+    ((lambda vars . body)
+     (lambda vars => () . body))))
 
 (define-syntax if
   (syntax-rules

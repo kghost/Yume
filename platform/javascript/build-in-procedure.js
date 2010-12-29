@@ -780,10 +780,26 @@ yume.global_add("string-length", new yume._procedure(function(cps, scope) {
 yume._null_list, 1, false));
 
 yume.global_add("string-ref", new yume._procedure(function(cps, scope) {
-	throw "not-implement";
-	/*return { cps: cps, result: "not-implement" };*/
+	var frame = scope.car();
+	var s = frame.car();
+	if (!yume.is_string(s)) {
+		throw "runtime-error: " + s + " is not string";
+	}
+	var i = frame.cdr().car();
+	if (!yume.is_number(i)) {
+		throw "runtime-error: " + i + " is not number";
+	}
+	var sv = s.get_value();
+	var iv = i.get_value();
+	if (iv < 0 || iv >= sv.length) {
+		throw "runtime-error: " + iv + " out of index " + sv;
+	}
+	return {
+		cps: cps,
+		result: new yume._char(sv.charCodeAt(iv))
+	};
 },
-yume._null_list, 0, true));
+yume._null_list, 2, false));
 
 yume.global_add("string-set!", new yume._procedure(function(cps, scope) {
 	var frame = scope.car();
@@ -860,7 +876,16 @@ yume.global_add("list->string", new yume._procedure(function(cps, scope) {
 yume._null_list, 1, false));
 
 // ***************** Vectors *******************
-// TODO:
+yume.global_add("vector?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var p = frame.car();
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(yume.is_vector(p))
+	};
+},
+yume._null_list, 1, false));
+
 // ************* Control features **************
 yume.global_add("procedure?", new yume._procedure(function(cps, scope) {
 	var frame = scope.car();
