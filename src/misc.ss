@@ -34,6 +34,7 @@
     clist))
 
 (define (eq-this? this) (lambda (that) (eq? this that)))
+(define (bind-first proc arg) (lambda args (apply proc arg args)))
 
 (define (debug x)
   (pretty-print x)

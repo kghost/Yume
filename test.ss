@@ -1,24 +1,18 @@
-(use-syntax (match))
-
-(define-syntax x
-  (syntax-rules ()
-		((x #(#((a)) ...)) (#(#()) ...))))
-
-(x #(#((1)) #((2)) #((3))))
-
-;(match macro
-;       ((name
-;	  ('syntax-rules (? (lambda (e) (and (proper-list? e) (every symbol? e))) auxiliary-keywords)
-;	   (? (lambda (rule)
-;		(match rule
-;		       ((matching (? (lambda (p)
-;				       (let check-dddot-at-head ((p p))
-;					 (or (not (pair? p))
-;					     (and (not (eq? (car p) '...))
-;						  (dotted-every check-dddot-at-head (car p))
-;						  (dotted-every check-dddot-at-head (cdr p))))))
-;				     expr)) #t)
-;		       (_ (raise (list "expand-error" "syntax-error" "... not at end" macro)))))
-;	      rules) ___))
-;	(list name (cons auxiliary-keywords rules)))
-;       (_ (raise (list "expand-error" "syntax-error" macro))))
+(letrec-syntax
+  ((my-or (syntax-rules ()
+			((my-or) #f)
+			((my-or e) e)
+			((my-or e1 e2 ...)
+			 (let ((temp e1))
+			   (if temp
+			     temp
+			     (my-or e2 ...)))))))
+  (let ((x #f)
+	(y 7)
+	(temp 8)
+	(let odd?)
+	(if even?))
+    (my-or x
+	   (let temp)
+	   (if y)
+	   y)))

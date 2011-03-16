@@ -1,4 +1,5 @@
 (use-modules (srfi srfi-1))
+(use-modules (srfi srfi-9))
 (use-syntax (ice-9 syncase))
 (use-modules (ice-9 pretty-print))
 
@@ -15,7 +16,7 @@
 (define feature-use-modules (interpret (open-input-file "library/feature-use-modules.ss")))
 (define program (interpret (current-input-port)))
 
-(debug-set! stack 200000)
+(debug-set! stack 2000000)
 
 (let ((output (current-output-port)))
   (compile output
