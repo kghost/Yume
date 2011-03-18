@@ -1,7 +1,3 @@
-(use-modules (srfi srfi-1))
-(use-modules (ice-9 rw))
-(use-modules (ice-9 pretty-print))
-
 (define write-string write-string/partial)
 
 (define compile
@@ -31,7 +27,7 @@
 				(write-string "\")" output))
 		   ((boolean? p) (write-string (if p
 						 "yume._boolean._true"
-						 "yume._boolean._false")))
+						 "yume._boolean._false") output))
 		   ((number? p) (write-string "new yume._number(" output)
 				(write p)
 				(write-string ")" output))
@@ -152,7 +148,7 @@
 		   ,(lambda (p)
 		      (lambda ()
 			(write-string "yume.global_get(\"" output)
-			(write-string (symbol->string (cadr p)))
+			(write-string (symbol->string (cadr p)) output)
 			(write-string "\")" output))))
 
 		 (yume:procedure-new
@@ -271,7 +267,7 @@
 			     ((symbol? p) (write-string (symbol->string p) output))
 			     ((boolean? p) (write-string (if p
 							   "yume._boolean._true"
-							   "yume._boolean._false")))
+							   "yume._boolean._false") output))
 			     ((number? p) (write-string "new yume._number(" output)
 					  (write p)
 					  (write-string ")" output))
@@ -291,7 +287,7 @@
 	  (write-string " = function() {" output)
 	  (newline output)
 	  (let ((ret (compile p)))
-	    (write-string "return ")
+	    (write-string "return " output)
 	    (ret)
 	    (write-string ";" output)
 	    (newline output)

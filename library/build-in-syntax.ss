@@ -44,3 +44,17 @@
     ((begin . body)
      ($begin . body))))
 
+(define-syntax quasiquote
+  (syntax-rules
+    (unquote =>)
+    ((quasiquote => (x . y)) (cons (quasiquote x) (quasiquote => y)))
+    ((quasiquote => y) (quote y))
+    ((quasiquote (unquote x)) x)
+    ((quasiquote (x . y)) (cons (quasiquote x) (quasiquote => y)))
+    ((quasiquote x) (quote x))))
+
+; XXX : shadow pretty-print
+(define-syntax pretty-print
+  (syntax-rules
+    ()
+    (x (begin))))

@@ -1,6 +1,7 @@
 (use-modules (srfi srfi-1))
 (use-modules (srfi srfi-9))
 (use-syntax (ice-9 syncase))
+(use-modules (ice-9 rw))
 (use-modules (ice-9 pretty-print))
 
 (load "../../library/match.scm")

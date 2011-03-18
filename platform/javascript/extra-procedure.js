@@ -33,3 +33,35 @@ yume._null_list, 1, false));
 	yume._null_list, 1, false));
 })();
 
+yume.global_add("write-string/partial", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var s = frame.car();
+	var o = frame.cdr().car();
+	if (!yume.is_string(s)) {
+		throw "runtime-error: " + s + "is not string";
+	}
+	if (!yume.is_output(o)) {
+		throw "runtime-error: " + o + "is not output";
+	}
+	o.write_string(s.get_value());
+	return {
+		cps: cps,
+		result: undefined
+	};
+},
+yume._null_list, 2, false));
+
+yume.global_add("newline", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var o = frame.car();
+	if (!yume.is_output(o)) {
+		throw "runtime-error: " + o + "is not output";
+	}
+	o.write_string("\n");
+	return {
+		cps: cps,
+		result: undefined
+	};
+},
+yume._null_list, 1, false));
+

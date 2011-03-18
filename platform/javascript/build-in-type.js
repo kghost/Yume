@@ -160,11 +160,12 @@ yume.is_continue = function(p) {
 	return typeof p === "object" && yume._continue.prototype.isPrototypeOf(p);
 };
 
-yume.continue_run = function(cps, result) {
+yume.continue_run = function(r) {
+	var cps = r.cps;
 	if (!yume.is_continue(cps)) {
 		throw "internal-runtime-error: Continue call: " + cps + " is not a continue";
 	}
-	return cps._call(result);
+	return cps._call(r.result);
 };
 
 yume.continue_call = function(cps, result) {
@@ -177,10 +178,24 @@ yume.continue_call = function(cps, result) {
 	};
 };
 
+yume.continue_apply = function(cps, result) {
+	if (!yume.is_continue(cps)) {
+		throw "internal-runtime-error: Continue call: " + cps + " is not a continue";
+	}
+	return {
+		cps: cps,
+		result: new yume._values(result)
+	};
+};
+
 yume.continue_to_procedure = function(cont) {
 	return new yume._procedure(function (cps, scope) {
-		return yume.continue_call(cont, scope.car().car());
-	}, yume._null_list, 1, false);
+		if (yume.is_pair(scope.car()) && yume.is_null_list(scope.car().cdr())) {
+			return yume.continue_call(cont, scope.car().car());
+		} else {
+			return yume.continue_apply(cont, scope.car());
+		}
+	}, yume._null_list, 0, true);
 };
 
 // ******************* pair ********************
@@ -388,6 +403,46 @@ yume._values.prototype = {
 
 yume.is_values = function(p) {
 	return typeof p === "object" && yume._values.prototype.isPrototypeOf(p);
+};
+
+// ****************** record *******************
+yume._record = function(length) {
+	if (typeof length !== "number") {
+		throw "Record constructor: " + length;
+	}
+	this.obj = [];
+	this.obj.length = length;
+};
+
+yume._record.prototype = {
+	__type__: "record",
+	eqv: function(that) {
+		return this === that;
+	},
+	get: function(index) {
+		if (typeof index !== "number") {
+			throw "Record get: " + index;
+		}
+		if (index >= 0 && index < this.obj.length) {
+			return this.obj[index];
+		} else {
+			throw "Record out of index";
+		}
+	},
+	set: function(index, value) {
+		if (typeof index !== "number") {
+			throw "Record get: " + index;
+		}
+		if (index >= 0 && index < this.obj.length) {
+			this.obj[index] = value;
+		} else {
+			throw "Record out of index";
+		}
+	}
+};
+
+yume.is_record = function(p) {
+	return typeof p === "object" && yume._record.prototype.isPrototypeOf(p);
 };
 
 // **************** list helper ****************

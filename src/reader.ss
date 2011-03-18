@@ -131,6 +131,7 @@
 	   (cond ((eqv? c #\\) (parse-char (read-char input) input))
 		 ((eqv? c #\() (parse-vector (read-char input) '() input))
 		 ((letter? c) (parse-sharp-name c '() input))
+		 ((eqv? c #\:) (parse-symbol (read-char input) '(#\: #\#) input))
 		 (else (raise (list "parse-error" (list #\# c)))))))
 
        (parse-symbol

@@ -875,6 +875,24 @@ yume.global_add("list->string", new yume._procedure(function(cps, scope) {
 },
 yume._null_list, 1, false));
 
+yume.global_add("string->list", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var str = frame.car();
+	if (!yume.is_string(str)) {
+		throw "runtime-error: " + str + " is not string";
+	}
+	var s = str.get_value();
+	var l = yume._null_list;
+	for (var i = s.length - 1; i >= 0; --i) {
+		l = yume.cons(new yume._char(s.charCodeAt(i)), l);
+	}
+	return {
+		cps: cps,
+		result: l
+	};
+},
+yume._null_list, 1, false));
+
 // ***************** Vectors *******************
 yume.global_add("vector?", new yume._procedure(function(cps, scope) {
 	var frame = scope.car();
@@ -885,6 +903,66 @@ yume.global_add("vector?", new yume._procedure(function(cps, scope) {
 	};
 },
 yume._null_list, 1, false));
+
+// ***************** Records *******************
+yume.global_add("record?", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var p = frame.car();
+	return {
+		cps: cps,
+		result: js_bool_to_scheme_bool(yume.is_record(p))
+	};
+},
+yume._null_list, 1, false));
+
+yume.global_add("make-record", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var p = frame.car();
+	if (!yume.is_number(p)) {
+		throw "runtime-error: " + p + " is not number";
+	}
+	return {
+		cps: cps,
+		result: new yume._record(p.get_value())
+	};
+},
+yume._null_list, 1, false));
+
+yume.global_add("record-ref", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var p = frame.car();
+	var i = frame.cdr().car();
+	if (!yume.is_record(p)) {
+		throw "runtime-error: " + p + " is not record";
+	}
+	if (!yume.is_number(i)) {
+		throw "runtime-error: " + p + " is not number";
+	}
+	return {
+		cps: cps,
+		result: p.get(i.get_value())
+	};
+},
+yume._null_list, 2, false));
+
+yume.global_add("record-set!", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var p = frame.car();
+	var i = frame.cdr().car();
+	var v = frame.cdr().cdr().car();
+	if (!yume.is_record(p)) {
+		throw "runtime-error: " + p + " is not record";
+	}
+	if (!yume.is_number(i)) {
+		throw "runtime-error: " + p + " is not number";
+	}
+	p.set(i.get_value(), v);
+	return {
+		cps: cps,
+		result: undefined
+	};
+},
+yume._null_list, 3, false));
 
 // ************* Control features **************
 yume.global_add("procedure?", new yume._procedure(function(cps, scope) {

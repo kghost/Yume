@@ -2,8 +2,18 @@ var dummy = function() {};
 
 jQuery(window).load(function() {
 	var run = function(r) {
-		while (r !== null) {
-			r = yume.continue_run(r.cps, r.result);
+		try {
+			for (var count = 0; count < 10000 && r !== null; count++) {
+				r = yume.continue_run(r);
+			}
+			if (r !== null) {
+				window.setTimeout(function() {
+					run(r);
+				},
+				0);
+			}
+		} catch(s) {
+			alert("OOps ... got error " + s);
 		}
 	};
 
@@ -112,17 +122,42 @@ jQuery(window).load(function() {
 	var application = test();
 	var running = false;
 
+	var button_compile = jQuery("#yume-compile");
 	var button_run = jQuery("#yume-run");
+	var text_compiled_code = jQuery("#yume-compiled-code");
+	var text_output = jQuery("#yume-output");
+
+	// run compiled js
 	button_run.click(function() {
 		button_run.attr("disabled", true);
+		current_input = new yume._input(new input(jQuery("#yume-input").val()));
+		text_output.val("");
+		var buffered_output = new output(function(s) {
+			text_output.val(text_output.val() + s);
+		});
+		current_output = new yume._output(buffered_output);
+		run(eval(text_compiled_code.val())(new yume._continue(function(cps, scope, result) {
+			current_input = undefined;
+			current_output = undefined;
+			buffered_output.flush(buffered_output.buffer);
+			buffered_output = undefined;
+			running = false;
+			button_run.removeAttr("disabled");
+			return null;
+		},
+		null), yume._null_list));
+	});
+
+	// compile scheme
+	button_compile.click(function() {
+		button_compile.attr("disabled", true);
 		if (running) {
 			alert("Yume running !!!");
 		} else {
-			current_input = new yume._input(new input(jQuery("#yume-input").val()));
-			var o = jQuery("#yume-output");
-			o.val("");
+			current_input = new yume._input(new input(jQuery("#yume-source").val()));
+			text_compiled_code.val("");
 			var buffered_output = new output(function(s) {
-				o.val(o.val() + s);
+				text_compiled_code.val(text_compiled_code.val() + s);
 			});
 			current_output = new yume._output(buffered_output);
 			run(application(new yume._continue(function(cps, scope, result) {
@@ -131,7 +166,7 @@ jQuery(window).load(function() {
 				buffered_output.flush(buffered_output.buffer);
 				buffered_output = undefined;
 				running = false;
-				button_run.removeAttr("disabled");
+				button_compile.removeAttr("disabled");
 				return null;
 			},
 			null), yume._null_list));

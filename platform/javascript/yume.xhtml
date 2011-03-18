@@ -11,13 +11,19 @@
 		<script type="text/javascript" src="yume.js" />
 	</head>
 	<body>
-		<textarea id="yume-input" rows="10" style="width: 100%">(do ((vec (make-vector 5))
-			(i 0 (+ i 1)))
-			((= i 5) vec)
-		(vector-set! vec i i))</textarea>
-		<br/>
+		<h3>Souce Code</h3>
+		<textarea id="yume-source" rows="10" style="width: 100%">(let fib ((x 1) (y 1))
+  (write (+ x y) (current-output-port))
+  (newline (current-output-port))
+  (if (&lt; x 100000)
+    (fib (+ x y) x)))</textarea>
+		<h3>Compiled Code</h3>
+		<textarea id="yume-compiled-code" rows="10" style="width: 100%" readonly="true" />
+		<h3>Input (use read-char to read anything here)</h3>
+		<textarea id="yume-input" rows="10" style="width: 100%" />
+		<h3>Output (use write to print something here)</h3>
+		<textarea id="yume-output" rows="10" style="width: 100%" readonly="true" />
+		<input id="yume-compile" value="Compile" type="button" />
 		<input id="yume-run" value="Run" type="button" />
-		<br/>
-		<textarea id="yume-output" rows="30" style="width: 100%" readonly="true" />
 	</body>
 </html>
