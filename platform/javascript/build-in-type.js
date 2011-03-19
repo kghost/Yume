@@ -351,8 +351,13 @@ yume._output.prototype = {
 	write_string: function(s) {
 		return this.o.write_string(s);
 	},
+	flush: function() {
+		if (this.flush && typeof this.flush === "function") {
+			this.o.flush();
+		}
+	},
 	close: function() {
-		return this.i.close();
+		return this.o.close();
 	}
 };
 

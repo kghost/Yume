@@ -1125,6 +1125,20 @@ yume.global_add("close-input-port", new yume._procedure(function(cps, scope) {
 },
 yume._null_list, 1, false));
 
+yume.global_add("flush-output", new yume._procedure(function(cps, scope) {
+	var frame = scope.car();
+	var p = frame.car();
+	if (!yume.is_output(p)) {
+		throw "runtime-error: " + s + " is not output port";
+	}
+	p.flush();
+	return {
+		cps: cps,
+		result: undefined
+	};
+},
+yume._null_list, 1, false));
+
 yume.global_add("close-output-port", new yume._procedure(function(cps, scope) {
 	var frame = scope.car();
 	var p = frame.car();

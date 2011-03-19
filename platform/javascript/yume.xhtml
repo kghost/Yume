@@ -8,6 +8,7 @@
 		<script type="text/javascript" src="build-in-procedure.js" />
 		<script type="text/javascript" src="extra-procedure.js" />
 		<script type="text/javascript" src="gen/test.js" />
+		<script type="text/javascript" src="lib/list.js" />
 		<script type="text/javascript" src="yume.js" />
 	</head>
 	<body>
@@ -16,14 +17,17 @@
   (write (+ x y) (current-output-port))
   (newline (current-output-port))
   (if (&lt; x 100000)
-    (fib (+ x y) x)))</textarea>
-		<h3>Compiled Code</h3>
-		<textarea id="yume-compiled-code" rows="10" style="width: 100%" readonly="true" />
+  (fib (+ x y) x)))</textarea>
+		<h3><a id="yume-expanded-code-toggle" href="javascript:void(0)">Macro expanded Code (click to view)</a></h3>
+		<textarea id="yume-expanded-code" rows="10" style="display: none; width: 100%; background-color: #E6E6E6;" readonly="true" />
+		<h3><a id="yume-compiled-code-toggle" href="javascript:void(0)">Compiled Code (click to view)</a></h3>
+		<textarea id="yume-compiled-code" rows="10" style="display: none; width: 100%; background-color: #E6E6E6;" readonly="true" />
 		<h3>Input (use read-char to read anything here)</h3>
 		<textarea id="yume-input" rows="10" style="width: 100%" />
 		<h3>Output (use write to print something here)</h3>
-		<textarea id="yume-output" rows="10" style="width: 100%" readonly="true" />
+		<textarea id="yume-output" rows="10" style="width: 100%; background-color: #E6E6E6;" readonly="true" />
 		<input id="yume-compile" value="Compile" type="button" />
 		<input id="yume-run" value="Run" type="button" />
+		<div id="yume-notify" style="display: none; padding: 5px; background-color: yellow; border: 1px solid; position:absolute; right:50px; top:50px;" />
 	</body>
 </html>

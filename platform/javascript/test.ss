@@ -18,10 +18,14 @@
       (call-with-values
 	(lambda () (macros program))
 	(lambda (inline-macros statements)
-	  (expand
-	    (append
-	      build-in-syntax
-	      build-in-macros
-	      inline-macros)
-	    (cons 'begin statements)))))
+	  (let ((expanded (expand
+			    (append
+			      build-in-syntax
+			      build-in-macros
+			      inline-macros)
+			    (cons 'begin statements)))
+		(expanded-port (expanded-port)))
+	    (write expanded expanded-port)
+	    (flush-output expanded-port)
+	    expanded))))
     #f))
