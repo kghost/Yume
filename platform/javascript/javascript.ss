@@ -144,6 +144,16 @@
 			  (value)
 			  (write-string ")" output)))))
 
+		 (yume:global-set
+		   ,(lambda (p)
+		      (let ((value (compile (caddr p))))
+			(lambda ()
+			  (write-string "yume.global_set(\"" output)
+			  (write-string (symbol->string (cadr p)) output)
+			  (write-string "\", " output)
+			  (value)
+			  (write-string ")" output)))))
+
 		 (yume:global-get
 		   ,(lambda (p)
 		      (lambda ()
