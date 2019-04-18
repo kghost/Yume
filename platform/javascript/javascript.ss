@@ -21,7 +21,7 @@
 			      (write-string ", " output)
 			      (compile-quote (cdr p))
 			      (write-string ")" output))
-		   ((eq? p '()) (write-string "yume._null_list") output)
+		   ((eq? p '()) (write-string "yume._null_list" output))
 		   ((symbol? p) (write-string "new yume._symbol(\"" output)
 				(write-string (symbol->string p) output)
 				(write-string "\")" output))
